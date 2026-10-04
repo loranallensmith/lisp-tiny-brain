@@ -329,6 +329,25 @@ reduction.
 
 This is symbolic information seeking, not entropy or expected-value math yet.
 
+## Memory View
+
+Version 0.12 adds an architectural memory view:
+
+```lisp
+(show-memory *agent*)
+```
+
+This does not introduce a new storage engine. It groups the agent's existing
+state by conceptual role:
+
+- working memory: active goals, unknowns, and active hypotheses
+- semantic memory: current beliefs
+- episodic memory: observations and actions
+- revision history: retractions and resolved hypotheses
+
+The point is to make the memory architecture inspectable before making it more
+sophisticated.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -361,6 +380,7 @@ Then:
 (show-goals *agent*)
 (show-episodes *agent*)
 (show-hypotheses *agent*)
+(show-memory *agent*)
 
 (why *agent* '(color ball-1 red))
 (why *agent* '(visible ball-1))
@@ -397,6 +417,7 @@ This first milestone does not include:
 - probabilistic updates, entropy, or normalized hypothesis sets
 - a general truth-maintenance system
 - reasoning over episodic memory
+- separate memory stores beyond the current grouped view
 - a database
 - external services
 - neural networks, embeddings, or LLM calls

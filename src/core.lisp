@@ -792,3 +792,58 @@ agent has no explanation for."
             (hypothesis-confidence hypothesis)
             (hypothesis-proposition hypothesis)))
   (values))
+
+(defun show-memory (agent &optional (stream *standard-output*))
+  "Print AGENT's current memory organized by conceptual role.
+
+This is an architectural view over the current data structures, not a separate
+memory store."
+  (format stream "~&WORKING MEMORY:~%")
+  (format stream "  GOALS:~%")
+  (dolist (goal (sorted-copy (remove-if-not
+                              (lambda (goal)
+                                (eql (goal-status goal) :active))
+                              (agent-goals agent))
+                             #'goal-desire))
+    (format stream "    ~S~%" (goal-desire goal)))
+  (format stream "  UNKNOWNS:~%")
+  (dolist (unknown (sorted-copy (agent-unknowns agent) #'identity))
+    (format stream "    ~S~%" unknown))
+  (format stream "  ACTIVE HYPOTHESES:~%")
+  (dolist (hypothesis (reverse (remove-if-not
+                                (lambda (hypothesis)
+                                  (eql (hypothesis-status hypothesis) :active))
+                                (agent-hypotheses agent))))
+    (format stream "    ~S ~S ~S~%"
+            (hypothesis-question hypothesis)
+            (hypothesis-confidence hypothesis)
+            (hypothesis-proposition hypothesis)))
+
+  (format stream "~&SEMANTIC MEMORY:~%")
+  (dolist (belief (sorted-copy (agent-beliefs agent) #'belief-fact))
+    (format stream "  ~S~%" (belief-fact belief)))
+
+  (format stream "~&EPISODIC MEMORY:~%")
+  (dolist (episode (reverse (agent-episodes agent)))
+    (format stream "  ~S ~S -> ~S~%"
+            (episode-type episode)
+            (episode-detail episode)
+            (episode-results episode)))
+
+  (format stream "~&REVISION HISTORY:~%")
+  (format stream "  RETRACTIONS:~%")
+  (dolist (retraction (reverse (agent-retractions agent)))
+    (format stream "    ~S -> ~S (~S)~%"
+            (retraction-fact retraction)
+            (retraction-replaced-by retraction)
+            (retraction-reason retraction)))
+  (format stream "  RESOLVED HYPOTHESES:~%")
+  (dolist (hypothesis (reverse (remove-if
+                                (lambda (hypothesis)
+                                  (eql (hypothesis-status hypothesis) :active))
+                                (agent-hypotheses agent))))
+    (format stream "    ~S ~S ~S~%"
+            (hypothesis-status hypothesis)
+            (hypothesis-question hypothesis)
+            (hypothesis-proposition hypothesis)))
+  (values))

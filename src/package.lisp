@@ -20,6 +20,7 @@
    #:show-goals
    #:show-episodes
    #:show-hypotheses
+   #:show-memory
    #:why
    #:explain
    #:show-explanation
