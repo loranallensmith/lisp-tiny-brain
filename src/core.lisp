@@ -45,6 +45,12 @@
   suggestion
   reason)
 
+(defstruct plan
+  goal
+  steps
+  status
+  reason)
+
 (defstruct episode
   type
   detail
@@ -563,6 +569,49 @@ goals are preferred over curiosity-only suggestions."
             :suggestion (first suggestions)
             :reason :reduces-unknown)))))))
 
+(defun suggestion-serves-desire-p (suggestion desire)
+  (let ((goal (action-suggestion-serves-goal suggestion)))
+    (and goal
+         (eql (goal-status goal) :active)
+         (term= (goal-desire goal) desire))))
+
+(defun suggestion-reduces-desire-p (suggestion desire)
+  (and (consp desire)
+       (symbol-name= (first desire) 'known)
+       (= (length desire) 2)
+       (term= (action-suggestion-reason suggestion) (second desire))))
+
+(defun suggestion-for-plan (agent desire)
+  (find-if (lambda (suggestion)
+             (or (suggestion-serves-desire-p suggestion desire)
+                 (suggestion-reduces-desire-p suggestion desire)))
+           (suggest-actions agent)))
+
+(defun plan-for-goal (agent desire)
+  "Return a one-step plan for DESIRE from AGENT's current state.
+
+Plans do not mutate the agent and do not execute actions. They only describe
+whether a desired state is already satisfied, ready via one available
+suggestion, or blocked by missing preconditions/actions."
+  (update-goals agent)
+  (cond
+    ((goal-satisfied-p agent desire)
+     (make-plan :goal desire
+                :steps nil
+                :status :satisfied
+                :reason :goal-already-satisfied))
+    (t
+     (let ((suggestion (suggestion-for-plan agent desire)))
+       (if suggestion
+           (make-plan :goal desire
+                      :steps (list suggestion)
+                      :status :ready
+                      :reason :one-step-suggestion)
+           (make-plan :goal desire
+                      :steps nil
+                      :status :blocked
+                      :reason :no-available-suggestion))))))
+
 (defun perform-suggestion (agent world suggestion)
   "Perform SUGGESTION in WORLD.
 
@@ -791,6 +840,25 @@ agent has no explanation for."
             (hypothesis-status hypothesis)
             (hypothesis-confidence hypothesis)
             (hypothesis-proposition hypothesis)))
+  (values))
+
+(defun plan-step-form (step)
+  (if (typep step 'action-suggestion)
+      (list (action-suggestion-action step)
+            (action-suggestion-target step))
+      step))
+
+(defun show-plan (plan &optional (stream *standard-output*))
+  "Print an inspectable one-step PLAN."
+  (format stream "~&PLAN:~%")
+  (format stream "  GOAL: ~S~%" (plan-goal plan))
+  (format stream "  STATUS: ~S~%" (plan-status plan))
+  (format stream "  REASON: ~S~%" (plan-reason plan))
+  (format stream "  STEPS:~%")
+  (if (plan-steps plan)
+      (dolist (step (plan-steps plan))
+        (format stream "    ~S~%" (plan-step-form step)))
+      (format stream "    NONE~%"))
   (values))
 
 (defun show-memory (agent &optional (stream *standard-output*))

@@ -269,6 +269,36 @@ This is not planning. It does not search, loop, or invent new actions. It only
 chooses one currently available suggestion and can execute known action types,
 starting with `open-container`.
 
+## One-Step Plans
+
+Version 0.13 adds tiny inspectable plans:
+
+```lisp
+(defparameter *plan* (plan-for-goal *agent* '(known (contents box-1))))
+(show-plan *plan*)
+```
+
+A plan answers "what sequence could satisfy this goal?" while `select-action`
+answers "what should I do now?" For now, the sequence is intentionally limited
+to one currently available suggestion:
+
+```lisp
+(plan
+  :goal '(known (contents box-1))
+  :steps (list suggestion)
+  :status :ready
+  :reason :one-step-suggestion)
+```
+
+Plan statuses are:
+
+- `:satisfied` when the desired state is already true for the agent
+- `:ready` when one available action suggestion can make progress
+- `:blocked` when no current suggestion can serve the goal
+
+This is still not recursive search. Plans expose the next available step
+without inventing hidden state or running an autonomous loop.
+
 ## Episodic Memory
 
 Version 0.9 adds a small episodic memory:
@@ -372,6 +402,8 @@ Then:
 (add-hypothesis *agent* '(contents box-1) '(contents box-1 empty) 0.20)
 (add-hypothesis *agent* '(contents box-1) '(contents box-1 unknown) 0.10)
 (suggest-tests *agent*)
+(defparameter *plan* (plan-for-goal *agent* '(known (contents box-1))))
+(show-plan *plan*)
 (defparameter *selection* (select-action *agent*))
 (perform-suggestion *agent* *world*
                     (selected-action-suggestion *selection*))

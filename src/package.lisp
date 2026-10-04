@@ -15,12 +15,14 @@
    #:suggest-actions
    #:suggest-tests
    #:select-action
+   #:plan-for-goal
    #:perform-suggestion
    #:show-beliefs
    #:show-goals
    #:show-episodes
    #:show-hypotheses
    #:show-memory
+   #:show-plan
    #:why
    #:explain
    #:show-explanation
@@ -51,6 +53,11 @@
    #:selected-action
    #:selected-action-suggestion
    #:selected-action-reason
+   #:plan
+   #:plan-goal
+   #:plan-steps
+   #:plan-status
+   #:plan-reason
    #:episode
    #:episode-type
    #:episode-detail
