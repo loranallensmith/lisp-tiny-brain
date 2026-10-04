@@ -1,0 +1,12 @@
+(define-scenario invalid-scenario
+  :facts ((room lab)
+          (closed crate)
+          (container cabinet))
+  :observations (missing-room)
+  :goals ((known (contents crate)))
+  :hypotheses (((contents crate)
+                (contents crate sample)
+                1.2)
+               ((contents cabinet)
+                (contents other-cabinet sample)
+                0.4)))

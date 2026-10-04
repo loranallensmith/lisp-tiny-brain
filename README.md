@@ -32,6 +32,7 @@ sudo apt install sbcl
 lisp-tiny-brain.asd     ASDF system definition
 src/package.lisp        Public package and exports
 src/core.lisp           Tiny world, agent, beliefs, observations
+docs/*.md               Scenario authoring notes
 examples/*.lisp         Editable scenario files
 scripts/*.lisp          Command-line scenario runners
 tests/package.lisp      Test package
@@ -388,6 +389,15 @@ Validation catches common authoring mistakes before the runner starts, such as
 observing a missing room, marking a non-container as closed, putting a contents
 goal on an undeclared container, or writing a malformed hypothesis. The runner
 prints validation issues and stops on errors.
+
+You can validate a scenario without running it:
+
+```sh
+sbcl --script scripts/validate-scenario.lisp examples/kitchen-box.lisp
+```
+
+See [docs/scenario-format.md](docs/scenario-format.md) for the authoring guide,
+examples, validation rules, and current limits.
 
 ## Episodic Memory
 

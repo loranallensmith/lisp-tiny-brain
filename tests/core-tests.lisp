@@ -215,6 +215,18 @@
     (check (search ":UNKNOWN-OBSERVATION-TARGET" text))
     (check (search "MISSING-ROOM" text))))
 
+(defun test-example-scenarios-have_expected_validation ()
+  (dolist (pathname '("examples/kitchen-box.lisp"
+                      "examples/lab-crate.lisp"
+                      "examples/blocked-goal.lisp"
+                      "examples/nested-containers.lisp"))
+    (check (scenario-valid-p (load-scenario pathname))))
+  (let ((issues (validate-scenario
+                 (load-scenario "examples/invalid-scenario.lisp"))))
+    (check (issue-code-present-p :unknown-observation-target issues))
+    (check (issue-code-present-p :closed-non-container issues))
+    (check (issue-code-present-p :invalid-hypothesis issues))))
+
 (defun test-opening-container-requires-access ()
   (let ((world (make-world))
         (agent (make-agent)))
@@ -807,6 +819,7 @@
   (test-validate-scenario-reports_container_errors)
   (test-validate-scenario-reports_goal_and_hypothesis_errors)
   (test-show-validation-prints_issues)
+  (test-example-scenarios-have_expected_validation)
   (test-opening-container-requires-access)
   (test-opening-container-reveals-immediate-contents)
   (test-action-observations-have-provenance)
