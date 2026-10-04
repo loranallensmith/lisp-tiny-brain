@@ -11,6 +11,7 @@
   (retractions nil)
   (goals nil)
   (episodes nil)
+  (hypotheses nil)
   (clock 0))
 
 (defstruct belief
@@ -48,6 +49,15 @@
   detail
   results
   time)
+
+(defstruct hypothesis
+  question
+  proposition
+  confidence
+  source
+  status
+  created-at
+  resolved-at)
 
 (defstruct goal
   desire
@@ -181,6 +191,7 @@ API. Observations expose selected facts to the agent."
                        :premises premises)
           (agent-beliefs agent)))
   (update-goals agent)
+  (update-hypotheses agent)
   fact)
 
 (defun remove-belief (agent fact)
@@ -294,6 +305,87 @@ API. Observations expose selected facts to the agent."
         (remove desire (agent-goals agent) :key #'goal-desire :test #'term=))
   desire)
 
+(defun add-hypothesis (agent question proposition confidence
+                       &key (source :manual))
+  "Add a competing hypothesis for QUESTION."
+  (or (find-if (lambda (hypothesis)
+                 (and (term= (hypothesis-question hypothesis) question)
+                      (term= (hypothesis-proposition hypothesis) proposition)))
+               (agent-hypotheses agent))
+      (progn
+        (incf (agent-clock agent))
+        (let ((hypothesis (make-hypothesis
+                           :question question
+                           :proposition proposition
+                           :confidence confidence
+                           :source source
+                           :status :active
+                           :created-at (agent-clock agent))))
+          (push hypothesis (agent-hypotheses agent))
+          (refresh-hypothesis-status agent hypothesis)))))
+
+(defun contents-question-p (question)
+  (and (consp question)
+       (symbol-name= (fact-predicate question) 'contents)
+       (fact-subject question)
+       (= (length question) 2)))
+
+(defun facts-located-in (agent container)
+  (remove-if-not
+   (lambda (belief)
+     (let ((fact (belief-fact belief)))
+       (and (symbol-name= (fact-predicate fact) 'location)
+            (term= (fact-object fact) container))))
+   (agent-beliefs agent)))
+
+(defun contents-question-resolved-p (agent container)
+  (and (not (member `(contents ,container) (agent-unknowns agent) :test #'term=))
+       (or (why agent `(open ,container))
+           (facts-located-in agent container))))
+
+(defun contents-proposition-confirmed-p (agent container proposition)
+  (and (consp proposition)
+       (symbol-name= (fact-predicate proposition) 'contents)
+       (term= (fact-subject proposition) container)
+       (= (length proposition) 3)
+       (let ((content (fact-object proposition)))
+         (cond
+           ((symbol-name= content 'empty)
+            (and (contents-question-resolved-p agent container)
+                 (null (facts-located-in agent container))))
+           ((symbol-name= content 'unknown)
+            nil)
+           (t
+            (why agent `(location ,content ,container)))))))
+
+(defun refresh-hypothesis-status (agent hypothesis)
+  (when (eql (hypothesis-status hypothesis) :active)
+    (let ((question (hypothesis-question hypothesis)))
+      (cond
+        ((contents-question-p question)
+         (let ((container (fact-subject question)))
+           (cond
+             ((contents-proposition-confirmed-p
+               agent container (hypothesis-proposition hypothesis))
+              (incf (agent-clock agent))
+              (setf (hypothesis-status hypothesis) :confirmed
+                    (hypothesis-resolved-at hypothesis) (agent-clock agent)))
+             ((contents-question-resolved-p agent container)
+              (incf (agent-clock agent))
+              (setf (hypothesis-status hypothesis) :rejected
+                    (hypothesis-resolved-at hypothesis) (agent-clock agent))))))
+        ((why agent (hypothesis-proposition hypothesis))
+         (incf (agent-clock agent))
+         (setf (hypothesis-status hypothesis) :confirmed
+               (hypothesis-resolved-at hypothesis) (agent-clock agent))))))
+  hypothesis)
+
+(defun update-hypotheses (agent)
+  "Refresh active hypotheses against AGENT's current beliefs."
+  (dolist (hypothesis (agent-hypotheses agent))
+    (refresh-hypothesis-status agent hypothesis))
+  (agent-hypotheses agent))
+
 (defun observable-properties-for (world thing)
   "Return simple properties visible from looking at THING.
 
@@ -366,12 +458,13 @@ facts this action makes observable."
     (remove-world-fact world `(closed ,container))
     (add-world-fact world `(open ,container))
     (add-belief agent `(open ,container) :source :action-observation)
-    (remove-unknown agent `(contents ,container))
     (dolist (thing (things-located-in world container))
       (dolist (fact (observable-contained-properties-for world thing))
         (add-belief agent fact :source :action-observation))
       (when (fact-present-p world `(closed ,thing))
         (add-unknown agent `(contents ,thing))))
+    (remove-unknown agent `(contents ,container))
+    (update-hypotheses agent)
     (record-episode agent
                     :action
                     `(open-container ,container)
@@ -649,4 +742,15 @@ agent has no explanation for."
             (episode-type episode)
             (episode-detail episode)
             (episode-results episode)))
+  (values))
+
+(defun show-hypotheses (agent &optional (stream *standard-output*))
+  "Print AGENT's explicit hypotheses."
+  (format stream "~&HYPOTHESES:~%")
+  (dolist (hypothesis (reverse (agent-hypotheses agent)))
+    (format stream "  ~S ~S ~S ~S~%"
+            (hypothesis-question hypothesis)
+            (hypothesis-status hypothesis)
+            (hypothesis-confidence hypothesis)
+            (hypothesis-proposition hypothesis)))
   (values))

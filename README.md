@@ -292,6 +292,26 @@ Current beliefs are still the agent's semantic-ish model of what is true now.
 Episodes are a history of what happened. For now, inference does not create
 episodes, and episodes are not used for reasoning.
 
+## Hypotheses
+
+Version 0.10 adds explicit competing hypotheses:
+
+```lisp
+(add-hypothesis *agent*
+                '(contents box-1)
+                '(contents box-1 key-1)
+                0.70)
+
+(show-hypotheses *agent*)
+```
+
+A hypothesis is not a belief. It records a proposition, confidence, source, and
+status under a question such as `(contents box-1)`.
+
+For now, confidence values are assigned manually. There is no Bayesian update
+yet. When later observations settle a contents question, compatible hypotheses
+are marked `:confirmed` and incompatible ones are marked `:rejected`.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -312,6 +332,9 @@ Then:
 (observe *agent* *world* 'room-1)
 (infer *agent*)
 (add-goal *agent* '(known (contents box-1)))
+(add-hypothesis *agent* '(contents box-1) '(contents box-1 key-1) 0.70)
+(add-hypothesis *agent* '(contents box-1) '(contents box-1 empty) 0.20)
+(add-hypothesis *agent* '(contents box-1) '(contents box-1 unknown) 0.10)
 (defparameter *selection* (select-action *agent*))
 (perform-suggestion *agent* *world*
                     (selected-action-suggestion *selection*))
@@ -319,6 +342,7 @@ Then:
 (show-beliefs *agent*)
 (show-goals *agent*)
 (show-episodes *agent*)
+(show-hypotheses *agent*)
 
 (why *agent* '(color ball-1 red))
 (why *agent* '(visible ball-1))
@@ -352,7 +376,7 @@ This first milestone does not include:
 - a general-purpose rule engine
 - planning or multi-step action search
 - learned procedures
-- probabilistic updates
+- probabilistic updates or normalized hypothesis sets
 - a general truth-maintenance system
 - reasoning over episodic memory
 - a database

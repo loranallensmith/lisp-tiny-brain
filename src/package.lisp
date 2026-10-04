@@ -5,8 +5,10 @@
    #:make-agent
    #:add-belief
    #:add-goal
+   #:add-hypothesis
    #:remove-goal
    #:update-goals
+   #:update-hypotheses
    #:observe
    #:infer
    #:open-container
@@ -16,6 +18,7 @@
    #:show-beliefs
    #:show-goals
    #:show-episodes
+   #:show-hypotheses
    #:why
    #:explain
    #:show-explanation
@@ -24,6 +27,7 @@
    #:agent-retractions
    #:agent-goals
    #:agent-episodes
+   #:agent-hypotheses
    #:belief
    #:belief-fact
    #:belief-confidence
@@ -49,6 +53,14 @@
    #:episode-detail
    #:episode-results
    #:episode-time
+   #:hypothesis
+   #:hypothesis-question
+   #:hypothesis-proposition
+   #:hypothesis-confidence
+   #:hypothesis-source
+   #:hypothesis-status
+   #:hypothesis-created-at
+   #:hypothesis-resolved-at
    #:goal
    #:goal-desire
    #:goal-status
