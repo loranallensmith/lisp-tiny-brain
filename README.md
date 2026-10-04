@@ -29,6 +29,18 @@ Try the example that requires an observation action:
 sbcl --script scripts/run-scenario.lisp examples/blocked-goal.lisp
 ```
 
+Show the artificial-brain view while a scenario runs:
+
+```sh
+sbcl --script scripts/run-scenario.lisp examples/kitchen-box.lisp --cognitive
+```
+
+Run the release check:
+
+```sh
+sbcl --script scripts/check-release.lisp
+```
+
 Write your own scenario by copying one of the files in `examples/`, then read
 [docs/scenario-format.md](docs/scenario-format.md) for the supported facts,
 goals, hypotheses, validation rules, and current limits.
@@ -436,6 +448,28 @@ This does not add a new reasoning mechanism. It makes the existing artificial
 brain easier to read as a cycle of observation, curiosity, action, learning,
 and memory.
 
+From the command line, add `--cognitive` to print this view after each step:
+
+```sh
+sbcl --script scripts/run-scenario.lisp examples/kitchen-box.lisp --cognitive
+```
+
+Example excerpt:
+
+```text
+COGNITIVE CYCLE:
+PERCEPTION:
+  LATEST: (OBSERVE KITCHEN) -> ...
+CURIOSITY:
+  RESOLVED THIS STEP:
+    (CONTENTS CABINET)
+ACTION:
+  DID: (OPEN-CONTAINER CABINET)
+LEARNING:
+  BELIEFS LEARNED:
+    (OBJECT MUG)
+```
+
 ## Observation Actions
 
 Version 0.19 lets the agent use known-but-unobserved rooms as action targets.
@@ -476,6 +510,12 @@ sbcl --script scripts/run-scenario.lisp examples/lab-crate.lisp 5
 
 This is still a thin script over the public API. It exists so someone can try
 the project without learning the REPL sequence first.
+
+Release checks can be run with:
+
+```sh
+sbcl --script scripts/check-release.lisp
+```
 
 ## Scenario Validation
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## v1.0.1
+
+- Add `--cognitive` mode to `scripts/run-scenario.lisp`.
+- Add `scripts/check-release.lisp` for one-command release verification.
+- Document the v1.0 command-line cognitive view.
+
+## v1.0.0
+
+- First usable proof-of-concept release.
+- Includes scenario authoring, validation, command-line scenario running,
+  observation and container-opening actions, explicit goals, hypotheses,
+  memory views, step traces, and cognitive-cycle reporting.
+
 ## v0.21.0
 
 - Add release-oriented README sections for first-run usage, capabilities, and

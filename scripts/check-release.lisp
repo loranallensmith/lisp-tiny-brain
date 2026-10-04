@@ -1,0 +1,80 @@
+(require :asdf)
+(load "lisp-tiny-brain.asd")
+(asdf:load-system :lisp-tiny-brain/tests)
+
+(defpackage #:tiny-brain/release-check
+  (:use #:cl #:tiny-brain))
+
+(in-package #:tiny-brain/release-check)
+
+(defun fail (message)
+  (format *error-output* "~&FAIL: ~A~%" message)
+  (uiop:quit 1))
+
+(defun ensure (condition message)
+  (unless condition
+    (fail message)))
+
+(defun validation-errors-p (issues)
+  (find :error issues :key #'validation-issue-severity))
+
+(defun check-valid-scenario (pathname)
+  (let ((issues (validate-scenario (load-scenario pathname))))
+    (ensure (not (validation-errors-p issues))
+            (format nil "~A should validate cleanly." pathname))))
+
+(defun check-invalid-scenario (pathname)
+  (let ((issues (validate-scenario (load-scenario pathname))))
+    (ensure (validation-errors-p issues)
+            (format nil "~A should report validation errors." pathname))))
+
+(defun action-names (action)
+  (mapcar (lambda (part)
+            (if (symbolp part)
+                (symbol-name part)
+                part))
+          action))
+
+(defun action= (left right)
+  (equal (action-names left) (action-names right)))
+
+(defun check-blocked-goal-run ()
+  (multiple-value-bind (agent world)
+      (start-scenario (load-scenario "examples/blocked-goal.lisp"))
+    (let ((first-trace (step-agent agent world))
+          (second-trace (step-agent agent world))
+          (third-trace (step-agent agent world)))
+      (ensure (action= (step-trace-action first-trace)
+                       '(observe-room storage))
+              "Blocked scenario should first observe storage.")
+      (ensure (action= (step-trace-action second-trace)
+                       '(open-container safe))
+              "Blocked scenario should then open the safe.")
+      (ensure (eql (step-trace-status third-trace) :satisfied)
+              "Blocked scenario should finish satisfied."))))
+
+(defun check-cognition-output ()
+  (multiple-value-bind (agent world)
+      (start-scenario (load-scenario "examples/kitchen-box.lisp"))
+    (let* ((trace (step-agent agent world))
+           (text (let ((*package* (find-package '#:tiny-brain)))
+                   (with-output-to-string (stream)
+                     (show-cognition agent trace stream)))))
+      (ensure (search "COGNITIVE CYCLE:" text)
+              "Cognitive report should include its heading.")
+      (ensure (search "LEARNING:" text)
+              "Cognitive report should include learning section."))))
+
+(defun main ()
+  (format t "~&Running release checks...~%")
+  (ensure (tiny-brain/tests:run-tests)
+          "Unit tests failed.")
+  (check-valid-scenario "examples/kitchen-box.lisp")
+  (check-valid-scenario "examples/blocked-goal.lisp")
+  (check-valid-scenario "examples/nested-containers.lisp")
+  (check-invalid-scenario "examples/invalid-scenario.lisp")
+  (check-blocked-goal-run)
+  (check-cognition-output)
+  (format t "~&Release checks passed.~%"))
+
+(main)
