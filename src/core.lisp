@@ -23,6 +23,12 @@
   premises
   conclusion)
 
+(defstruct action-suggestion
+  action
+  target
+  reason
+  preconditions)
+
 (defun make-world ()
   "Create the tiny ground-truth environment.
 
@@ -202,6 +208,34 @@ facts this action makes observable."
     (when (fact-present-p world `(closed ,thing))
       (add-unknown agent `(contents ,thing))))
   agent)
+
+(defun suggest-action-for-unknown (agent unknown)
+  (cond
+    ((and (symbol-name= (fact-predicate unknown) 'contents)
+          (fact-subject unknown))
+     (let ((container (fact-subject unknown)))
+       (when (and (why agent `(container ,container))
+                  (container-accessible-p agent container)
+                  (why agent `(closed ,container)))
+         (make-action-suggestion
+          :action 'open-container
+          :target container
+          :reason unknown
+          :preconditions `((container ,container)
+                           (visible ,container)
+                           (closed ,container))))))
+    (t
+     nil)))
+
+(defun suggest-actions (agent)
+  "Suggest actions that may reduce AGENT's explicit unknowns.
+
+Suggestions are derived from the agent's beliefs and unknowns only. They do not
+inspect the hidden world state and they do not execute anything."
+  (remove nil
+          (mapcar (lambda (unknown)
+                    (suggest-action-for-unknown agent unknown))
+                  (agent-unknowns agent))))
 
 (defparameter *default-rules*
   (list

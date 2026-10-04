@@ -5,7 +5,8 @@ LLMs, embeddings, transformers, neural networks, or a large hidden framework.
 
 The current goal is modest: create a tiny artificial world with hidden ground
 truth, give an agent partial observations, infer a few simple consequences,
-perform one small action, and inspect what the agent believes.
+perform one small action, suggest actions that could reduce uncertainty, and
+inspect what the agent believes.
 
 ## Recommended Lisp
 
@@ -131,6 +132,44 @@ the container is visible. That means this works after:
 (open-container *agent* *world* 'box-1)
 ```
 
+## Curiosity
+
+Version 0.4 adds a tiny form of information seeking:
+
+```lisp
+(suggest-actions *agent*)
+```
+
+This does not execute anything and it is not a planner. It maps explicit
+unknowns to actions that might resolve them, using only the agent's current
+beliefs.
+
+For example, if the agent has:
+
+```lisp
+(contents box-1)
+```
+
+and believes:
+
+```lisp
+(container box-1)
+(visible box-1)
+(closed box-1)
+```
+
+then it can suggest an inspectable record shaped like:
+
+```lisp
+(action-suggestion
+  :action 'open-container
+  :target 'box-1
+  :reason '(contents box-1)
+  :preconditions '((container box-1)
+                   (visible box-1)
+                   (closed box-1)))
+```
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -150,6 +189,7 @@ Then:
 
 (observe *agent* *world* 'room-1)
 (infer *agent*)
+(suggest-actions *agent*)
 (open-container *agent* *world* 'box-1)
 (infer *agent*)
 (show-beliefs *agent*)
@@ -182,7 +222,7 @@ This first milestone does not include:
 
 - natural-language interaction
 - a general-purpose rule engine
-- planning or action selection
+- planning or multi-step action selection
 - learned procedures
 - probabilistic updates
 - a database

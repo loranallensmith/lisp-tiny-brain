@@ -6,6 +6,7 @@
    #:observe
    #:infer
    #:open-container
+   #:suggest-actions
    #:show-beliefs
    #:why
    #:agent-beliefs
@@ -20,4 +21,9 @@
    #:rule
    #:rule-name
    #:rule-premises
-   #:rule-conclusion))
+   #:rule-conclusion
+   #:action-suggestion
+   #:action-suggestion-action
+   #:action-suggestion-target
+   #:action-suggestion-reason
+   #:action-suggestion-preconditions))
