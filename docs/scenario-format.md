@@ -57,6 +57,11 @@ location is an observed room. Closed containers create an explicit unknown:
 (contents cabinet)
 ```
 
+At scenario startup, the agent receives the room facts as a simple map. It does
+not learn which objects are in unobserved rooms until it observes those rooms.
+This allows scenarios such as `examples/blocked-goal.lisp`, where the agent
+first observes a remote room and then opens the container it finds there.
+
 ## Observations
 
 `:observations` lists rooms the agent observes at startup:
@@ -106,5 +111,5 @@ Use `examples/invalid-scenario.lisp` to see validation output on purpose.
 ## Current Limits
 
 This is still a tiny symbolic world. The action system currently knows how to
-open accessible closed containers. It does not yet support movement, pickup,
-search, arbitrary actions, or recursive planning.
+observe known rooms and open accessible closed containers. It does not yet
+support pickup, search, arbitrary actions, or recursive planning.

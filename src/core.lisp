@@ -131,6 +131,11 @@ API. Observations expose selected facts to the agent."
   "Create an agent with no initial beliefs."
   (%make-agent))
 
+(defun room-facts (facts)
+  (remove-if-not (lambda (fact)
+                   (symbol-name= (fact-predicate fact) 'room))
+                 facts))
+
 (defmacro define-scenario (name &key facts observations goals hypotheses)
   "Define an inspectable scenario as data."
   `(make-scenario :name ',name
@@ -152,6 +157,8 @@ Initial observations are applied through OBSERVE. Goals and hypotheses are then
 recorded on the agent. Returns AGENT, WORLD, and SCENARIO as multiple values."
   (let ((world (make-world :facts (scenario-facts scenario)))
         (agent (make-agent)))
+    (dolist (fact (room-facts (scenario-facts scenario)))
+      (add-belief agent fact :source :scenario-map))
     (dolist (target (scenario-observations scenario))
       (observe agent world target))
     (when infer
@@ -649,6 +656,22 @@ boundary where selected ground-truth facts become beliefs."
                     (new-facts-since agent before))
     agent))
 
+(defun observed-room-p (agent room)
+  (find `(observe ,room) (agent-episodes agent)
+        :key #'episode-detail
+        :test #'term=))
+
+(defun unobserved-known-rooms (agent)
+  (remove-if (lambda (room)
+               (observed-room-p agent room))
+             (mapcar (lambda (belief)
+                       (fact-subject (belief-fact belief)))
+                     (remove-if-not
+                      (lambda (belief)
+                        (symbol-name= (fact-predicate (belief-fact belief))
+                                      'room))
+                      (agent-beliefs agent)))))
+
 (defun container-accessible-p (agent container)
   "Return true when AGENT already believes CONTAINER is visible."
   (why agent `(visible ,container)))
@@ -715,15 +738,36 @@ facts this action makes observable."
     (t
      nil)))
 
+(defun suggest-observation-for-goal (agent goal)
+  (when (and (eql (goal-status goal) :active)
+             (known-contents-desire-p (goal-desire goal)))
+    (let ((room (first (sorted-copy (unobserved-known-rooms agent)
+                                    #'identity))))
+      (when room
+        (make-action-suggestion
+         :action 'observe-room
+         :target room
+         :reason (goal-desire goal)
+         :preconditions `((room ,room)
+                          (unobserved ,room))
+         :serves-goal goal)))))
+
+(defun suggest-observations-for-goals (agent)
+  (remove nil
+          (mapcar (lambda (goal)
+                    (suggest-observation-for-goal agent goal))
+                  (agent-goals agent))))
+
 (defun suggest-actions (agent)
   "Suggest actions that may reduce AGENT's explicit unknowns.
 
 Suggestions are derived from the agent's beliefs and unknowns only. They do not
 inspect the hidden world state and they do not execute anything."
-  (remove nil
-          (mapcar (lambda (unknown)
-                    (suggest-action-for-unknown agent unknown))
-                  (agent-unknowns agent))))
+  (append (remove nil
+                  (mapcar (lambda (unknown)
+                            (suggest-action-for-unknown agent unknown))
+                          (agent-unknowns agent)))
+          (suggest-observations-for-goals agent)))
 
 (defun suggest-tests (agent)
   "Suggest currently available actions that could distinguish hypotheses."
@@ -823,6 +867,8 @@ action or run an autonomous loop."
   (case (action-suggestion-action suggestion)
     (open-container
      (open-container agent world (action-suggestion-target suggestion)))
+    (observe-room
+     (observe agent world (action-suggestion-target suggestion)))
     (t
      (error "Don't know how to perform action ~S."
             (action-suggestion-action suggestion)))))

@@ -357,6 +357,28 @@ ready action when available, refreshes inference again, and returns a
 This is the beginning of a usable scenario runner. It is still deliberately
 bounded: one call, one inspectable step, no hidden autonomous loop.
 
+## Observation Actions
+
+Version 0.19 lets the agent use known-but-unobserved rooms as action targets.
+Scenarios now give the agent a small room map, without revealing the objects in
+those rooms. If a contents goal cannot be solved in the current observation
+state, the agent can suggest and perform:
+
+```lisp
+(observe-room storage)
+```
+
+For example, `examples/blocked-goal.lisp` now unfolds as a short sequence:
+
+```text
+STEP 1: observe storage
+STEP 2: open safe
+STEP 3: goal satisfied
+```
+
+This is still not recursive planning. It is a deliberately small exploration
+mechanism that makes scenario runs feel less like a single-box demo.
+
 ## Scenario Runner
 
 Version 0.16 adds a small command-line runner:
