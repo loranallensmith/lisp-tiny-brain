@@ -33,6 +33,7 @@ lisp-tiny-brain.asd     ASDF system definition
 src/package.lisp        Public package and exports
 src/core.lisp           Tiny world, agent, beliefs, observations
 examples/*.lisp         Editable scenario files
+scripts/*.lisp          Command-line scenario runners
 tests/package.lisp      Test package
 tests/core-tests.lisp   Minimal dependency-free test runner
 tests/run-tests.lisp    Script entry point for tests
@@ -354,6 +355,25 @@ ready action when available, refreshes inference again, and returns a
 
 This is the beginning of a usable scenario runner. It is still deliberately
 bounded: one call, one inspectable step, no hidden autonomous loop.
+
+## Scenario Runner
+
+Version 0.16 adds a small command-line runner:
+
+```sh
+sbcl --script scripts/run-scenario.lisp examples/kitchen-box.lisp
+```
+
+The runner loads a scenario, starts a fresh agent and world, prints initial
+memory, runs up to three controlled steps, then prints final memory. You can
+choose a different step limit:
+
+```sh
+sbcl --script scripts/run-scenario.lisp examples/lab-crate.lisp 5
+```
+
+This is still a thin script over the public API. It exists so someone can try
+the project without learning the REPL sequence first.
 
 ## Episodic Memory
 
