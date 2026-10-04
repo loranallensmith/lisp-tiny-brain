@@ -10,6 +10,7 @@
   (unknowns nil)
   (retractions nil)
   (goals nil)
+  (episodes nil)
   (clock 0))
 
 (defstruct belief
@@ -41,6 +42,12 @@
 (defstruct selected-action
   suggestion
   reason)
+
+(defstruct episode
+  type
+  detail
+  results
+  time)
 
 (defstruct goal
   desire
@@ -204,6 +211,23 @@ API. Observations expose selected facts to the agent."
   (pushnew fact (world-facts world) :test #'fact=)
   fact)
 
+(defun belief-facts (agent)
+  (mapcar #'belief-fact (agent-beliefs agent)))
+
+(defun new-facts-since (agent earlier-facts)
+  (remove-if (lambda (fact)
+               (member fact earlier-facts :test #'fact=))
+             (belief-facts agent)))
+
+(defun record-episode (agent type detail results)
+  (incf (agent-clock agent))
+  (push (make-episode :type type
+                      :detail detail
+                      :results results
+                      :time (agent-clock agent))
+        (agent-episodes agent))
+  results)
+
 (defun remove-unknown (agent unknown)
   (setf (agent-unknowns agent)
         (remove unknown (agent-unknowns agent) :test #'term=))
@@ -301,11 +325,17 @@ should make visibility rules explicit rather than burying them in this helper."
 
 The agent learns only through observations. This function is the controlled
 boundary where selected ground-truth facts become beliefs."
-  (cond
-    ((fact-present-p world `(room ,target))
-     (observe-room agent world target))
-    (t
-     (error "Don't know how to observe ~S yet." target))))
+  (let ((before (belief-facts agent)))
+    (cond
+      ((fact-present-p world `(room ,target))
+       (observe-room agent world target))
+      (t
+       (error "Don't know how to observe ~S yet." target)))
+    (record-episode agent
+                    :observation
+                    `(observe ,target)
+                    (new-facts-since agent before))
+    agent))
 
 (defun container-accessible-p (agent container)
   "Return true when AGENT already believes CONTAINER is visible."
@@ -326,21 +356,26 @@ boundary where selected ground-truth facts become beliefs."
 
 This is an action boundary: the world changes, but the agent only learns the
 facts this action makes observable."
-  (unless (why agent `(container ,container))
-    (error "The agent does not know that ~S is a container." container))
-  (unless (container-accessible-p agent container)
-    (error "The agent cannot access ~S." container))
-  (unless (fact-present-p world `(closed ,container))
-    (error "~S is not closed." container))
-  (remove-world-fact world `(closed ,container))
-  (add-world-fact world `(open ,container))
-  (add-belief agent `(open ,container) :source :action-observation)
-  (remove-unknown agent `(contents ,container))
-  (dolist (thing (things-located-in world container))
-    (dolist (fact (observable-contained-properties-for world thing))
-      (add-belief agent fact :source :action-observation))
-    (when (fact-present-p world `(closed ,thing))
-      (add-unknown agent `(contents ,thing))))
+  (let ((before (belief-facts agent)))
+    (unless (why agent `(container ,container))
+      (error "The agent does not know that ~S is a container." container))
+    (unless (container-accessible-p agent container)
+      (error "The agent cannot access ~S." container))
+    (unless (fact-present-p world `(closed ,container))
+      (error "~S is not closed." container))
+    (remove-world-fact world `(closed ,container))
+    (add-world-fact world `(open ,container))
+    (add-belief agent `(open ,container) :source :action-observation)
+    (remove-unknown agent `(contents ,container))
+    (dolist (thing (things-located-in world container))
+      (dolist (fact (observable-contained-properties-for world thing))
+        (add-belief agent fact :source :action-observation))
+      (when (fact-present-p world `(closed ,thing))
+        (add-unknown agent `(contents ,thing))))
+    (record-episode agent
+                    :action
+                    `(open-container ,container)
+                    (new-facts-since agent before)))
   agent)
 
 (defun suggest-action-for-unknown (agent unknown)
@@ -604,4 +639,14 @@ agent has no explanation for."
   (format stream "~&GOALS:~%")
   (dolist (goal (sorted-copy (agent-goals agent) #'goal-desire))
     (format stream "  ~S ~S~%" (goal-status goal) (goal-desire goal)))
+  (values))
+
+(defun show-episodes (agent &optional (stream *standard-output*))
+  "Print AGENT's episodic memory."
+  (format stream "~&EPISODES:~%")
+  (dolist (episode (reverse (agent-episodes agent)))
+    (format stream "  ~S ~S -> ~S~%"
+            (episode-type episode)
+            (episode-detail episode)
+            (episode-results episode)))
   (values))

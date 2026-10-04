@@ -6,7 +6,8 @@ LLMs, embeddings, transformers, neural networks, or a large hidden framework.
 The current goal is modest: create a tiny artificial world with hidden ground
 truth, give an agent partial observations, infer a few simple consequences,
 perform one small action, suggest actions that could reduce uncertainty, and
-represent simple goals while inspecting how the agent updates its beliefs.
+represent simple goals while inspecting how the agent updates its beliefs and
+remembers what happened.
 
 ## Recommended Lisp
 
@@ -268,6 +269,29 @@ This is not planning. It does not search, loop, or invent new actions. It only
 chooses one currently available suggestion and can execute known action types,
 starting with `open-container`.
 
+## Episodic Memory
+
+Version 0.9 adds a small episodic memory:
+
+```lisp
+(agent-episodes *agent*)
+(show-episodes *agent*)
+```
+
+Episodes record observations and actions:
+
+```lisp
+(episode
+  :type :observation
+  :detail '(observe room-1)
+  :results '((room room-1) ...)
+  :time 13)
+```
+
+Current beliefs are still the agent's semantic-ish model of what is true now.
+Episodes are a history of what happened. For now, inference does not create
+episodes, and episodes are not used for reasoning.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -294,6 +318,7 @@ Then:
 (infer *agent*)
 (show-beliefs *agent*)
 (show-goals *agent*)
+(show-episodes *agent*)
 
 (why *agent* '(color ball-1 red))
 (why *agent* '(visible ball-1))
@@ -329,6 +354,7 @@ This first milestone does not include:
 - learned procedures
 - probabilistic updates
 - a general truth-maintenance system
+- reasoning over episodic memory
 - a database
 - external services
 - neural networks, embeddings, or LLM calls

@@ -15,6 +15,7 @@
    #:perform-suggestion
    #:show-beliefs
    #:show-goals
+   #:show-episodes
    #:why
    #:explain
    #:show-explanation
@@ -22,6 +23,7 @@
    #:agent-unknowns
    #:agent-retractions
    #:agent-goals
+   #:agent-episodes
    #:belief
    #:belief-fact
    #:belief-confidence
@@ -42,6 +44,11 @@
    #:selected-action
    #:selected-action-suggestion
    #:selected-action-reason
+   #:episode
+   #:episode-type
+   #:episode-detail
+   #:episode-results
+   #:episode-time
    #:goal
    #:goal-desire
    #:goal-status
