@@ -6,7 +6,7 @@ LLMs, embeddings, transformers, neural networks, or a large hidden framework.
 The current goal is modest: create a tiny artificial world with hidden ground
 truth, give an agent partial observations, infer a few simple consequences,
 perform one small action, suggest actions that could reduce uncertainty, and
-represent simple goals, and inspect how the agent updates its beliefs.
+represent simple goals while inspecting how the agent updates its beliefs.
 
 ## Recommended Lisp
 
@@ -252,6 +252,22 @@ For now, goal satisfaction is deliberately narrow:
 Action suggestions can point at a goal they serve, but they still do not execute
 automatically and they do not search for multi-step plans.
 
+## One-Step Action Selection
+
+Version 0.8 adds a tiny action-selection layer:
+
+```lisp
+(select-action *agent*)
+(perform-suggestion *agent* *world* suggestion)
+```
+
+Selection returns an inspectable `selected-action` record. Suggestions that
+serve active goals are preferred over curiosity-only suggestions.
+
+This is not planning. It does not search, loop, or invent new actions. It only
+chooses one currently available suggestion and can execute known action types,
+starting with `open-container`.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -272,8 +288,9 @@ Then:
 (observe *agent* *world* 'room-1)
 (infer *agent*)
 (add-goal *agent* '(known (contents box-1)))
-(suggest-actions *agent*)
-(open-container *agent* *world* 'box-1)
+(defparameter *selection* (select-action *agent*))
+(perform-suggestion *agent* *world*
+                    (selected-action-suggestion *selection*))
 (infer *agent*)
 (show-beliefs *agent*)
 (show-goals *agent*)

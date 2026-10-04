@@ -38,6 +38,10 @@
   preconditions
   serves-goal)
 
+(defstruct selected-action
+  suggestion
+  reason)
+
 (defstruct goal
   desire
   status
@@ -370,6 +374,40 @@ inspect the hidden world state and they do not execute anything."
           (mapcar (lambda (unknown)
                     (suggest-action-for-unknown agent unknown))
                   (agent-unknowns agent))))
+
+(defun action-suggestion-serves-active-goal-p (suggestion)
+  (let ((goal (action-suggestion-serves-goal suggestion)))
+    (and goal
+         (eql (goal-status goal) :active))))
+
+(defun select-action (agent)
+  "Select one currently available action suggestion.
+
+This is one-step action selection, not planning. Suggestions serving active
+goals are preferred over curiosity-only suggestions."
+  (let ((suggestions (suggest-actions agent)))
+    (when suggestions
+      (let ((goal-suggestion (find-if #'action-suggestion-serves-active-goal-p
+                                      suggestions)))
+        (if goal-suggestion
+            (make-selected-action
+             :suggestion goal-suggestion
+             :reason :serves-active-goal)
+            (make-selected-action
+             :suggestion (first suggestions)
+             :reason :reduces-unknown))))))
+
+(defun perform-suggestion (agent world suggestion)
+  "Perform SUGGESTION in WORLD.
+
+Only known action types are executable. This intentionally does not choose an
+action or run an autonomous loop."
+  (case (action-suggestion-action suggestion)
+    (open-container
+     (open-container agent world (action-suggestion-target suggestion)))
+    (t
+     (error "Don't know how to perform action ~S."
+            (action-suggestion-action suggestion)))))
 
 (defparameter *default-rules*
   (list

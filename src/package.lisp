@@ -11,6 +11,8 @@
    #:infer
    #:open-container
    #:suggest-actions
+   #:select-action
+   #:perform-suggestion
    #:show-beliefs
    #:show-goals
    #:why
@@ -37,6 +39,9 @@
    #:action-suggestion-reason
    #:action-suggestion-preconditions
    #:action-suggestion-serves-goal
+   #:selected-action
+   #:selected-action-suggestion
+   #:selected-action-reason
    #:goal
    #:goal-desire
    #:goal-status
