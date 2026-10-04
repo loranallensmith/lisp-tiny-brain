@@ -4,17 +4,22 @@
    #:make-world
    #:make-agent
    #:add-belief
+   #:add-goal
+   #:remove-goal
+   #:update-goals
    #:observe
    #:infer
    #:open-container
    #:suggest-actions
    #:show-beliefs
+   #:show-goals
    #:why
    #:explain
    #:show-explanation
    #:agent-beliefs
    #:agent-unknowns
    #:agent-retractions
+   #:agent-goals
    #:belief
    #:belief-fact
    #:belief-confidence
@@ -31,6 +36,12 @@
    #:action-suggestion-target
    #:action-suggestion-reason
    #:action-suggestion-preconditions
+   #:action-suggestion-serves-goal
+   #:goal
+   #:goal-desire
+   #:goal-status
+   #:goal-created-at
+   #:goal-satisfied-at
    #:retraction
    #:retraction-fact
    #:retraction-reason

@@ -6,7 +6,7 @@ LLMs, embeddings, transformers, neural networks, or a large hidden framework.
 The current goal is modest: create a tiny artificial world with hidden ground
 truth, give an agent partial observations, infer a few simple consequences,
 perform one small action, suggest actions that could reduce uncertainty, and
-inspect how the agent updates its beliefs.
+represent simple goals, and inspect how the agent updates its beliefs.
 
 ## Recommended Lisp
 
@@ -224,6 +224,34 @@ For example, an inferred belief records its rule and recursively explains the
 premises that supported it. A retracted belief points at the retraction record
 that says what replaced it.
 
+## Goals
+
+Version 0.7 adds explicit goals:
+
+```lisp
+(add-goal *agent* '(known (contents box-1)))
+(show-goals *agent*)
+```
+
+A goal is not a plan. It is an inspectable desired state with a status:
+
+```lisp
+(goal
+  :desire '(known (contents box-1))
+  :status :active
+  :created-at 12
+  :satisfied-at nil)
+```
+
+For now, goal satisfaction is deliberately narrow:
+
+- `(known FACT)` is satisfied when the agent believes `FACT`.
+- `(known (contents CONTAINER))` is satisfied when the explicit contents
+  unknown has been resolved by opening the container.
+
+Action suggestions can point at a goal they serve, but they still do not execute
+automatically and they do not search for multi-step plans.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -243,10 +271,12 @@ Then:
 
 (observe *agent* *world* 'room-1)
 (infer *agent*)
+(add-goal *agent* '(known (contents box-1)))
 (suggest-actions *agent*)
 (open-container *agent* *world* 'box-1)
 (infer *agent*)
 (show-beliefs *agent*)
+(show-goals *agent*)
 
 (why *agent* '(color ball-1 red))
 (why *agent* '(visible ball-1))
@@ -278,7 +308,7 @@ This first milestone does not include:
 
 - natural-language interaction
 - a general-purpose rule engine
-- planning or multi-step action selection
+- planning or multi-step action search
 - learned procedures
 - probabilistic updates
 - a general truth-maintenance system

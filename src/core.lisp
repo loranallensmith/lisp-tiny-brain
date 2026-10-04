@@ -9,6 +9,7 @@
   (beliefs nil)
   (unknowns nil)
   (retractions nil)
+  (goals nil)
   (clock 0))
 
 (defstruct belief
@@ -34,7 +35,14 @@
   action
   target
   reason
-  preconditions)
+  preconditions
+  serves-goal)
+
+(defstruct goal
+  desire
+  status
+  created-at
+  satisfied-at)
 
 (defstruct explanation
   fact
@@ -161,6 +169,7 @@ API. Observations expose selected facts to the agent."
                        :rule rule
                        :premises premises)
           (agent-beliefs agent)))
+  (update-goals agent)
   fact)
 
 (defun remove-belief (agent fact)
@@ -194,7 +203,68 @@ API. Observations expose selected facts to the agent."
 (defun remove-unknown (agent unknown)
   (setf (agent-unknowns agent)
         (remove unknown (agent-unknowns agent) :test #'term=))
+  (update-goals agent)
   unknown)
+
+(defun contents-known-p (agent container)
+  (and (not (member `(contents ,container) (agent-unknowns agent) :test #'term=))
+       (or (why agent `(open ,container))
+           (some (lambda (belief)
+                   (and (symbol-name= (fact-predicate (belief-fact belief))
+                                      'location)
+                        (term= (fact-object (belief-fact belief)) container)))
+                 (agent-beliefs agent)))))
+
+(defun goal-satisfied-p (agent desire)
+  (cond
+    ((and (consp desire)
+          (symbol-name= (first desire) 'known)
+          (= (length desire) 2))
+     (let ((target (second desire)))
+       (cond
+         ((and (consp target)
+               (symbol-name= (fact-predicate target) 'contents)
+               (fact-subject target))
+          (contents-known-p agent (fact-subject target)))
+         (t
+          (why agent target)))))
+    (t
+     (why agent desire))))
+
+(defun refresh-goal-status (agent goal)
+  (cond
+    ((goal-satisfied-p agent (goal-desire goal))
+     (unless (eql (goal-status goal) :satisfied)
+       (incf (agent-clock agent))
+       (setf (goal-status goal) :satisfied
+             (goal-satisfied-at goal) (agent-clock agent))))
+    (t
+     (setf (goal-status goal) :active
+           (goal-satisfied-at goal) nil)))
+  goal)
+
+(defun update-goals (agent)
+  "Refresh goal status from AGENT's current beliefs and unknowns."
+  (dolist (goal (agent-goals agent))
+    (refresh-goal-status agent goal))
+  (agent-goals agent))
+
+(defun add-goal (agent desire)
+  "Add DESIRE as an explicit goal and return the goal record."
+  (or (find desire (agent-goals agent) :key #'goal-desire :test #'term=)
+      (progn
+        (incf (agent-clock agent))
+        (let ((goal (make-goal :desire desire
+                               :status :active
+                               :created-at (agent-clock agent))))
+          (push goal (agent-goals agent))
+          (refresh-goal-status agent goal)))))
+
+(defun remove-goal (agent desire)
+  "Remove the goal whose desire is DESIRE."
+  (setf (agent-goals agent)
+        (remove desire (agent-goals agent) :key #'goal-desire :test #'term=))
+  desire)
 
 (defun observable-properties-for (world thing)
   "Return simple properties visible from looking at THING.
@@ -283,7 +353,11 @@ facts this action makes observable."
           :reason unknown
           :preconditions `((container ,container)
                            (visible ,container)
-                           (closed ,container))))))
+                           (closed ,container))
+          :serves-goal (find `(known ,unknown)
+                             (agent-goals agent)
+                             :key #'goal-desire
+                             :test #'term=)))))
     (t
      nil)))
 
@@ -485,4 +559,11 @@ agent has no explanation for."
   (format stream "~&UNKNOWN:~%")
   (dolist (unknown (sorted-copy (agent-unknowns agent) #'identity))
     (format stream "  ~S~%" unknown))
+  (values))
+
+(defun show-goals (agent &optional (stream *standard-output*))
+  "Print AGENT's explicit goals."
+  (format stream "~&GOALS:~%")
+  (dolist (goal (sorted-copy (agent-goals agent) #'goal-desire))
+    (format stream "  ~S ~S~%" (goal-status goal) (goal-desire goal)))
   (values))
