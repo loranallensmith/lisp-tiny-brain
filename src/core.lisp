@@ -94,6 +94,11 @@ API. Observations expose selected facts to the agent."
           (agent-beliefs agent)))
   fact)
 
+(defun remove-belief (agent fact)
+  (setf (agent-beliefs agent)
+        (remove fact (agent-beliefs agent) :key #'belief-fact :test #'fact=))
+  fact)
+
 (defun add-unknown (agent unknown)
   "Record an explicit unknown unless it is already present."
   (pushnew unknown (agent-unknowns agent) :test #'term=)
@@ -109,6 +114,20 @@ API. Observations expose selected facts to the agent."
 
 (defun fact-present-p (world fact)
   (find fact (world-facts world) :test #'fact=))
+
+(defun remove-world-fact (world fact)
+  (setf (world-facts world)
+        (remove fact (world-facts world) :test #'fact=))
+  fact)
+
+(defun add-world-fact (world fact)
+  (pushnew fact (world-facts world) :test #'fact=)
+  fact)
+
+(defun remove-unknown (agent unknown)
+  (setf (agent-unknowns agent)
+        (remove unknown (agent-unknowns agent) :test #'term=))
+  unknown)
 
 (defun observable-properties-for (world thing)
   "Return simple properties visible from looking at THING.
@@ -146,6 +165,43 @@ boundary where selected ground-truth facts become beliefs."
      (observe-room agent world target))
     (t
      (error "Don't know how to observe ~S yet." target))))
+
+(defun container-accessible-p (agent container)
+  "Return true when AGENT already believes CONTAINER is visible."
+  (why agent `(visible ,container)))
+
+(defun observable-contained-properties-for (world thing)
+  "Return facts learned when a container exposes THING."
+  (remove-if-not
+   (lambda (fact)
+     (and (term= (fact-subject fact) thing)
+          (member (fact-predicate fact)
+                  '(object container color shape size location)
+                  :test #'symbol-name=)))
+   (world-facts world)))
+
+(defun open-container (agent world container)
+  "Open CONTAINER and let AGENT observe its immediate contents.
+
+This is an action boundary: the world changes, but the agent only learns the
+facts this action makes observable."
+  (unless (why agent `(container ,container))
+    (error "The agent does not know that ~S is a container." container))
+  (unless (container-accessible-p agent container)
+    (error "The agent cannot access ~S." container))
+  (unless (fact-present-p world `(closed ,container))
+    (error "~S is not closed." container))
+  (remove-world-fact world `(closed ,container))
+  (add-world-fact world `(open ,container))
+  (remove-belief agent `(closed ,container))
+  (add-belief agent `(open ,container) :source :action-observation)
+  (remove-unknown agent `(contents ,container))
+  (dolist (thing (things-located-in world container))
+    (dolist (fact (observable-contained-properties-for world thing))
+      (add-belief agent fact :source :action-observation))
+    (when (fact-present-p world `(closed ,thing))
+      (add-unknown agent `(contents ,thing))))
+  agent)
 
 (defparameter *default-rules*
   (list

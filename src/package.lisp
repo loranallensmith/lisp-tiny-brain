@@ -5,6 +5,7 @@
    #:make-agent
    #:observe
    #:infer
+   #:open-container
    #:show-beliefs
    #:why
    #:agent-beliefs

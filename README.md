@@ -4,8 +4,8 @@ This is an experiment in building a small, inspectable AI system without using
 LLMs, embeddings, transformers, neural networks, or a large hidden framework.
 
 The current goal is modest: create a tiny artificial world with hidden ground
-truth, give an agent partial observations, infer a few simple consequences, and
-inspect what the agent believes.
+truth, give an agent partial observations, infer a few simple consequences,
+perform one small action, and inspect what the agent believes.
 
 ## Recommended Lisp
 
@@ -98,6 +98,39 @@ conclusion: (visible ?thing)
 The inference engine only reads the agent's beliefs. It does not inspect the
 world's hidden ground truth.
 
+## Actions
+
+Version 0.3 adds one action:
+
+```lisp
+(open-container *agent* *world* 'box-1)
+```
+
+Opening a known, accessible, closed container changes the real world from:
+
+```lisp
+(closed box-1)
+```
+
+to:
+
+```lisp
+(open box-1)
+```
+
+The agent does not receive arbitrary world access. It only learns facts made
+observable by the action, such as the immediate contents of the opened
+container. These beliefs use `:source :action-observation`.
+
+For now, accessibility is intentionally simple: the agent must already believe
+the container is visible. That means this works after:
+
+```lisp
+(observe *agent* *world* 'room-1)
+(infer *agent*)
+(open-container *agent* *world* 'box-1)
+```
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -117,10 +150,13 @@ Then:
 
 (observe *agent* *world* 'room-1)
 (infer *agent*)
+(open-container *agent* *world* 'box-1)
+(infer *agent*)
 (show-beliefs *agent*)
 
 (why *agent* '(color ball-1 red))
 (why *agent* '(visible ball-1))
+(why *agent* '(object key-1))
 ```
 
 Expected shape:
@@ -131,11 +167,13 @@ KNOWN:
   (OBJECT BALL-1)
   (COLOR BALL-1 RED)
   (LOCATION BALL-1 ROOM-1)
+  (OBJECT KEY-1)
+  (OPEN BOX-1)
   (VISIBLE BALL-1)
   ...
 
 UNKNOWN:
-  (CONTENTS BOX-1)
+  ;; empty after box-1 has been opened
 ```
 
 ## What Is Deliberately Left Out
@@ -144,7 +182,7 @@ This first milestone does not include:
 
 - natural-language interaction
 - a general-purpose rule engine
-- planning
+- planning or action selection
 - learned procedures
 - probabilistic updates
 - a database
