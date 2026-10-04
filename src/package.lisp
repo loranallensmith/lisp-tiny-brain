@@ -10,6 +10,8 @@
    #:suggest-actions
    #:show-beliefs
    #:why
+   #:explain
+   #:show-explanation
    #:agent-beliefs
    #:agent-unknowns
    #:agent-retractions
@@ -33,4 +35,12 @@
    #:retraction-fact
    #:retraction-reason
    #:retraction-replaced-by
-   #:retraction-retracted-at))
+   #:retraction-retracted-at
+   #:explanation
+   #:explanation-fact
+   #:explanation-status
+   #:explanation-source
+   #:explanation-confidence
+   #:explanation-rule
+   #:explanation-premises
+   #:explanation-retraction))

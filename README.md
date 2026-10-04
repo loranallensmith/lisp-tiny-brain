@@ -203,6 +203,27 @@ Each retraction records the old fact, the reason, the replacing fact, and when
 the retraction happened. This is deliberately small: it handles simple unary
 state replacement, not full contradiction detection or truth maintenance.
 
+## Explanation
+
+Version 0.6 adds a structured explanation layer:
+
+```lisp
+(explain *agent* '(visible ball-1))
+(show-explanation *agent* '(visible ball-1))
+```
+
+`why` still returns the raw belief record for an active belief. `explain`
+returns a higher-level explanation object that can distinguish:
+
+- active beliefs
+- inferred beliefs with premise explanations
+- retracted beliefs
+- unknown facts
+
+For example, an inferred belief records its rule and recursively explains the
+premises that supported it. A retracted belief points at the retraction record
+that says what replaced it.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -230,6 +251,8 @@ Then:
 (why *agent* '(color ball-1 red))
 (why *agent* '(visible ball-1))
 (why *agent* '(object key-1))
+(show-explanation *agent* '(location key-1 room-1))
+(show-explanation *agent* '(closed box-1))
 ```
 
 Expected shape:

@@ -36,6 +36,15 @@
   reason
   preconditions)
 
+(defstruct explanation
+  fact
+  status
+  source
+  confidence
+  rule
+  premises
+  retraction)
+
 (defun make-world ()
   "Create the tiny ground-truth environment.
 
@@ -402,6 +411,66 @@ world's ground truth."
 (defun why (agent fact)
   "Return the belief record explaining why AGENT believes FACT, or NIL."
   (find fact (agent-beliefs agent) :key #'belief-fact :test #'fact=))
+
+(defun why-retracted (agent fact)
+  "Return the retraction record explaining why FACT is no longer active, or NIL."
+  (find fact (agent-retractions agent) :key #'retraction-fact :test #'fact=))
+
+(defun explain (agent fact)
+  "Return an inspectable explanation for FACT.
+
+The explanation distinguishes active beliefs, retracted beliefs, and facts the
+agent has no explanation for."
+  (let ((belief (why agent fact)))
+    (cond
+      (belief
+       (make-explanation
+        :fact (belief-fact belief)
+        :status :believed
+        :source (belief-source belief)
+        :confidence (belief-confidence belief)
+        :rule (belief-rule belief)
+        :premises (mapcar (lambda (premise)
+                            (explain agent premise))
+                          (belief-premises belief))))
+      ((why-retracted agent fact)
+       (make-explanation
+        :fact fact
+        :status :retracted
+        :retraction (why-retracted agent fact)))
+      (t
+       (make-explanation
+        :fact fact
+        :status :unknown)))))
+
+(defun show-explanation (agent fact &optional (stream *standard-output*))
+  "Print a readable explanation for FACT."
+  (labels ((show (explanation depth)
+             (let ((indent (make-string (* depth 2) :initial-element #\Space)))
+               (format stream "~&~ABELIEF: ~S~%" indent (explanation-fact explanation))
+               (format stream "~ASTATUS: ~S~%" indent (explanation-status explanation))
+               (case (explanation-status explanation)
+                 (:believed
+                  (format stream "~ASOURCE: ~S~%" indent (explanation-source explanation))
+                  (format stream "~ACONFIDENCE: ~S~%" indent
+                          (explanation-confidence explanation))
+                  (when (explanation-rule explanation)
+                    (format stream "~ARULE: ~S~%" indent
+                            (explanation-rule explanation)))
+                  (when (explanation-premises explanation)
+                    (format stream "~APREMISES:~%" indent)
+                    (dolist (premise (explanation-premises explanation))
+                      (show premise (1+ depth)))))
+                 (:retracted
+                  (let ((retraction (explanation-retraction explanation)))
+                    (format stream "~AREASON: ~S~%" indent
+                            (retraction-reason retraction))
+                    (format stream "~AREPLACED-BY: ~S~%" indent
+                            (retraction-replaced-by retraction))
+                    (format stream "~ARETRACTED-AT: ~S~%" indent
+                            (retraction-retracted-at retraction))))))))
+    (show (explain agent fact) 0))
+  (values))
 
 (defun sorted-copy (items key)
   (sort (copy-list items) #'string<
