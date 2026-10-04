@@ -9,6 +9,62 @@ perform one small action, suggest actions that could reduce uncertainty, and
 represent simple goals while inspecting how the agent updates its beliefs and
 remembers what happened.
 
+## Start Here
+
+Run the main example:
+
+```sh
+sbcl --script scripts/run-scenario.lisp examples/kitchen-box.lisp
+```
+
+Validate a scenario before running it:
+
+```sh
+sbcl --script scripts/validate-scenario.lisp examples/kitchen-box.lisp
+```
+
+Try the example that requires an observation action:
+
+```sh
+sbcl --script scripts/run-scenario.lisp examples/blocked-goal.lisp
+```
+
+Write your own scenario by copying one of the files in `examples/`, then read
+[docs/scenario-format.md](docs/scenario-format.md) for the supported facts,
+goals, hypotheses, validation rules, and current limits.
+
+## What It Is
+
+This project is a tiny transparent cognition engine. It is useful for
+education, experiments with symbolic agent architecture, and prototypes where
+every belief, action, and memory update should be inspectable.
+
+It demonstrates:
+
+- perception through controlled observations
+- semantic memory as current beliefs
+- working memory as active goals, unknowns, and hypotheses
+- episodic memory as observations and actions over time
+- curiosity as explicit unknowns that suggest information-gathering actions
+- inference from explicit rules
+- belief revision for simple mutually exclusive states
+- inspectable plans, actions, traces, and cognitive-cycle reports
+
+## Current Limits
+
+This is not a chatbot, a neural model, or a general-purpose assistant. It does
+not learn statistical patterns, parse natural language, or invent arbitrary
+actions.
+
+Current actions are intentionally small:
+
+- observe known rooms
+- open known, visible, closed containers
+
+Planning is still shallow and inspectable. The system can chain behavior across
+steps through observations and newly available suggestions, but it does not run
+a recursive search planner yet.
+
 ## Recommended Lisp
 
 Use **SBCL**. It is mature, fast, widely packaged, and includes ASDF, which is
