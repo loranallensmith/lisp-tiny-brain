@@ -4,6 +4,7 @@
    #:make-world
    #:make-agent
    #:observe
+   #:infer
    #:show-beliefs
    #:why
    #:agent-beliefs
@@ -12,5 +13,10 @@
    #:belief-fact
    #:belief-confidence
    #:belief-source
-   #:belief-observed-at))
-
+   #:belief-observed-at
+   #:belief-rule
+   #:belief-premises
+   #:rule
+   #:rule-name
+   #:rule-premises
+   #:rule-conclusion))

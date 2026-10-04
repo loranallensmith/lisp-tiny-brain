@@ -4,7 +4,8 @@ This is an experiment in building a small, inspectable AI system without using
 LLMs, embeddings, transformers, neural networks, or a large hidden framework.
 
 The current goal is modest: create a tiny artificial world with hidden ground
-truth, give an agent partial observations, and inspect what the agent believes.
+truth, give an agent partial observations, infer a few simple consequences, and
+inspect what the agent believes.
 
 ## Recommended Lisp
 
@@ -54,7 +55,9 @@ copy the whole world. It only accumulates `belief` records:
   :fact '(color ball-1 red)
   :confidence 1.0
   :source :direct-observation
-  :observed-at 1)
+  :observed-at 1
+  :rule nil
+  :premises nil)
 ```
 
 Unknowns are represented explicitly as small records like:
@@ -66,6 +69,34 @@ Unknowns are represented explicitly as small records like:
 For now, confidence is present but boring: direct observations have confidence
 `1.0`. This gives us a slot to evolve later without pretending we have solved
 uncertainty.
+
+Inferred beliefs use the same record, but with `:source :inference`, a rule
+name, and the premise facts that supported the conclusion.
+
+## Inference
+
+Version 0.2 adds a tiny forward-chaining inference pass:
+
+```lisp
+(infer *agent*)
+```
+
+Rules are explicit Lisp structures with:
+
+- a name
+- premise patterns
+- a conclusion pattern
+
+For example, the rule named `:thing-in-observed-room-is-visible` says:
+
+```lisp
+premises:   ((location ?thing ?room)
+             (room ?room))
+conclusion: (visible ?thing)
+```
+
+The inference engine only reads the agent's beliefs. It does not inspect the
+world's hidden ground truth.
 
 ## What Version 0.1 Can Do
 
@@ -85,9 +116,11 @@ Then:
 (defparameter *agent* (make-agent))
 
 (observe *agent* *world* 'room-1)
+(infer *agent*)
 (show-beliefs *agent*)
 
 (why *agent* '(color ball-1 red))
+(why *agent* '(visible ball-1))
 ```
 
 Expected shape:
@@ -98,6 +131,7 @@ KNOWN:
   (OBJECT BALL-1)
   (COLOR BALL-1 RED)
   (LOCATION BALL-1 ROOM-1)
+  (VISIBLE BALL-1)
   ...
 
 UNKNOWN:
@@ -109,7 +143,7 @@ UNKNOWN:
 This first milestone does not include:
 
 - natural-language interaction
-- a rule engine
+- a general-purpose rule engine
 - planning
 - learned procedures
 - probabilistic updates
