@@ -21,12 +21,14 @@
    #:select-action
    #:plan-for-goal
    #:perform-suggestion
+   #:step-agent
    #:show-beliefs
    #:show-goals
    #:show-episodes
    #:show-hypotheses
    #:show-memory
    #:show-plan
+   #:show-trace
    #:why
    #:explain
    #:show-explanation
@@ -69,6 +71,15 @@
    #:plan-steps
    #:plan-status
    #:plan-reason
+   #:step-trace
+   #:step-trace-status
+   #:step-trace-goal
+   #:step-trace-plan
+   #:step-trace-selection
+   #:step-trace-action
+   #:step-trace-new-beliefs
+   #:step-trace-resolved-unknowns
+   #:step-trace-reason
    #:episode
    #:episode-type
    #:episode-detail

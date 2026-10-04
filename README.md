@@ -330,6 +330,31 @@ Plan statuses are:
 This is still not recursive search. Plans expose the next available step
 without inventing hidden state or running an autonomous loop.
 
+## Step Traces
+
+Version 0.15 adds a controlled step runner:
+
+```lisp
+(defparameter *trace* (step-agent *agent* *world*))
+(show-trace *trace*)
+```
+
+One step refreshes inference, plans for the current active goal, executes one
+ready action when available, refreshes inference again, and returns a
+`step-trace` describing what changed:
+
+```lisp
+(step-trace
+  :status :acted
+  :goal '(known (contents cabinet))
+  :action '(open-container cabinet)
+  :new-beliefs '((open cabinet) ...)
+  :resolved-unknowns '((contents cabinet)))
+```
+
+This is the beginning of a usable scenario runner. It is still deliberately
+bounded: one call, one inspectable step, no hidden autonomous loop.
+
 ## Episodic Memory
 
 Version 0.9 adds a small episodic memory:
@@ -435,10 +460,8 @@ Then:
 (suggest-tests *agent*)
 (defparameter *plan* (plan-for-goal *agent* '(known (contents box-1))))
 (show-plan *plan*)
-(defparameter *selection* (select-action *agent*))
-(perform-suggestion *agent* *world*
-                    (selected-action-suggestion *selection*))
-(infer *agent*)
+(defparameter *trace* (step-agent *agent* *world*))
+(show-trace *trace*)
 (show-beliefs *agent*)
 (show-goals *agent*)
 (show-episodes *agent*)

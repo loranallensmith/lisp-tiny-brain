@@ -58,6 +58,16 @@
   status
   reason)
 
+(defstruct step-trace
+  status
+  goal
+  plan
+  selection
+  action
+  new-beliefs
+  resolved-unknowns
+  reason)
+
 (defstruct episode
   type
   detail
@@ -666,6 +676,88 @@ action or run an autonomous loop."
      (error "Don't know how to perform action ~S."
             (action-suggestion-action suggestion)))))
 
+(defun active-goals (agent)
+  (remove-if-not (lambda (goal)
+                   (eql (goal-status goal) :active))
+                 (agent-goals agent)))
+
+(defun current-goal-desire (agent explicit-goal)
+  (or explicit-goal
+      (let ((goal (first (sorted-copy (active-goals agent) #'goal-desire))))
+        (when goal
+          (goal-desire goal)))
+      (let ((goal (first (sorted-copy (agent-goals agent) #'goal-desire))))
+        (when goal
+          (goal-desire goal)))))
+
+(defun selection-for-plan (plan)
+  (when (and plan
+             (eql (plan-status plan) :ready)
+             (plan-steps plan))
+    (make-selected-action :suggestion (first (plan-steps plan))
+                          :reason :from-plan)))
+
+(defun unknowns-resolved-since (agent earlier-unknowns)
+  (remove-if (lambda (unknown)
+               (member unknown (agent-unknowns agent) :test #'term=))
+             earlier-unknowns))
+
+(defun step-status (plan selection action)
+  (cond
+    (action
+     :acted)
+    ((and plan (eql (plan-status plan) :satisfied))
+     :satisfied)
+    ((and plan (eql (plan-status plan) :blocked))
+     :blocked)
+    (selection
+     :ready)
+    (t
+     :idle)))
+
+(defun step-reason (plan selection)
+  (cond
+    (selection
+     (selected-action-reason selection))
+    (plan
+     (plan-reason plan))
+    (t
+     :no-active-goal-or-suggestion)))
+
+(defun step-agent (agent world &key goal)
+  "Advance AGENT by one controlled step in WORLD and return a STEP-TRACE.
+
+A step refreshes inference, plans for the selected active goal when one exists,
+executes one ready action, refreshes inference again after action, and records
+the visible state changes."
+  (let ((before-beliefs (belief-facts agent))
+        (before-unknowns (copy-list (agent-unknowns agent))))
+    (infer agent)
+    (let* ((desire (current-goal-desire agent goal))
+           (plan (when desire
+                   (plan-for-goal agent desire)))
+           (selection (or (selection-for-plan plan)
+                          (when (null plan)
+                            (select-action agent))))
+           (action nil))
+      (when selection
+        (let ((suggestion (selected-action-suggestion selection)))
+          (perform-suggestion agent world suggestion)
+          (setf action (list (action-suggestion-action suggestion)
+                             (action-suggestion-target suggestion)))
+          (infer agent)))
+      (update-goals agent)
+      (update-hypotheses agent)
+      (make-step-trace
+       :status (step-status plan selection action)
+       :goal desire
+       :plan plan
+       :selection selection
+       :action action
+       :new-beliefs (new-facts-since agent before-beliefs)
+       :resolved-unknowns (unknowns-resolved-since agent before-unknowns)
+       :reason (step-reason plan selection)))))
+
 (defparameter *default-rules*
   (list
    (make-rule :name :thing-in-observed-room-is-visible
@@ -900,6 +992,31 @@ agent has no explanation for."
   (if (plan-steps plan)
       (dolist (step (plan-steps plan))
         (format stream "    ~S~%" (plan-step-form step)))
+      (format stream "    NONE~%"))
+  (values))
+
+(defun show-trace (trace &optional (stream *standard-output*))
+  "Print the result of one STEP-AGENT call."
+  (format stream "~&STEP: ~S~%" (step-trace-status trace))
+  (when (step-trace-goal trace)
+    (format stream "  GOAL: ~S~%" (step-trace-goal trace)))
+  (format stream "  REASON: ~S~%" (step-trace-reason trace))
+  (when (step-trace-plan trace)
+    (format stream "  PLAN: ~S (~S)~%"
+            (plan-status (step-trace-plan trace))
+            (plan-reason (step-trace-plan trace))))
+  (when (step-trace-action trace)
+    (format stream "  ACTION: ~S~%" (step-trace-action trace)))
+  (format stream "  NEW BELIEFS:~%")
+  (if (step-trace-new-beliefs trace)
+      (dolist (fact (sorted-copy (step-trace-new-beliefs trace) #'identity))
+        (format stream "    ~S~%" fact))
+      (format stream "    NONE~%"))
+  (format stream "  RESOLVED UNKNOWNS:~%")
+  (if (step-trace-resolved-unknowns trace)
+      (dolist (unknown (sorted-copy (step-trace-resolved-unknowns trace)
+                                    #'identity))
+        (format stream "    ~S~%" unknown))
       (format stream "    NONE~%"))
   (values))
 
