@@ -32,6 +32,7 @@ sudo apt install sbcl
 lisp-tiny-brain.asd     ASDF system definition
 src/package.lisp        Public package and exports
 src/core.lisp           Tiny world, agent, beliefs, observations
+examples/*.lisp         Editable scenario files
 tests/package.lisp      Test package
 tests/core-tests.lisp   Minimal dependency-free test runner
 tests/run-tests.lisp    Script entry point for tests
@@ -74,6 +75,36 @@ uncertainty.
 
 Inferred beliefs use the same record, but with `:source :inference`, a rule
 name, and the premise facts that supported the conclusion.
+
+## Scenarios
+
+Version 0.14 starts moving the project from a single hardcoded demo toward an
+inspectable agent workbench. A scenario is plain Lisp data:
+
+```lisp
+(define-scenario kitchen-box
+  :facts ((room kitchen)
+          (container cabinet)
+          (closed cabinet)
+          (location cabinet kitchen)
+          (object mug)
+          (location mug cabinet))
+  :observations (kitchen)
+  :goals ((known (contents cabinet))))
+```
+
+Load and start one with:
+
+```lisp
+(defparameter *scenario* (load-scenario "examples/kitchen-box.lisp"))
+(multiple-value-bind (agent world) (start-scenario *scenario*)
+  (declare (ignore world))
+  (show-memory agent))
+```
+
+`start-scenario` still respects the observation boundary: it creates a hidden
+world from the facts, lets the agent observe only the listed targets, runs
+inference by default, then records the scenario's goals and hypotheses.
 
 ## Inference
 

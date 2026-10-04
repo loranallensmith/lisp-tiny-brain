@@ -3,6 +3,10 @@
   (:export
    #:make-world
    #:make-agent
+   #:make-scenario
+   #:define-scenario
+   #:load-scenario
+   #:start-scenario
    #:add-belief
    #:add-goal
    #:add-hypothesis
@@ -32,6 +36,13 @@
    #:agent-goals
    #:agent-episodes
    #:agent-hypotheses
+   #:world-facts
+   #:scenario
+   #:scenario-name
+   #:scenario-facts
+   #:scenario-observations
+   #:scenario-goals
+   #:scenario-hypotheses
    #:belief
    #:belief-fact
    #:belief-confidence

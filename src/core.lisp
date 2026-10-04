@@ -14,6 +14,13 @@
   (hypotheses nil)
   (clock 0))
 
+(defstruct scenario
+  name
+  facts
+  observations
+  goals
+  hypotheses)
+
 (defstruct belief
   fact
   confidence
@@ -81,30 +88,65 @@
   premises
   retraction)
 
-(defun make-world ()
+(defparameter *default-world-facts*
+  '((room room-1)
+    (room room-2)
+    (object ball-1)
+    (color ball-1 red)
+    (shape ball-1 sphere)
+    (size ball-1 small)
+    (location ball-1 room-1)
+    (container box-1)
+    (closed box-1)
+    (color box-1 blue)
+    (location box-1 room-1)
+    (object key-1)
+    (color key-1 brass)
+    (location key-1 box-1)))
+
+(defun make-world (&key (facts *default-world-facts*))
   "Create the tiny ground-truth environment.
 
 The world contains facts the agent may not inspect directly through the public
 API. Observations expose selected facts to the agent."
-  (%make-world
-   :facts '((room room-1)
-            (room room-2)
-            (object ball-1)
-            (color ball-1 red)
-            (shape ball-1 sphere)
-            (size ball-1 small)
-            (location ball-1 room-1)
-            (container box-1)
-            (closed box-1)
-            (color box-1 blue)
-            (location box-1 room-1)
-            (object key-1)
-            (color key-1 brass)
-            (location key-1 box-1))))
+  (%make-world :facts (copy-tree facts)))
 
 (defun make-agent ()
   "Create an agent with no initial beliefs."
   (%make-agent))
+
+(defmacro define-scenario (name &key facts observations goals hypotheses)
+  "Define an inspectable scenario as data."
+  `(make-scenario :name ',name
+                  :facts ',facts
+                  :observations ',observations
+                  :goals ',goals
+                  :hypotheses ',hypotheses))
+
+(defun load-scenario (pathname)
+  "Load one DEFINE-SCENARIO form from PATHNAME and return its scenario."
+  (let ((*package* (find-package '#:tiny-brain)))
+    (with-open-file (stream pathname :direction :input)
+      (eval (read stream)))))
+
+(defun start-scenario (scenario &key (infer t))
+  "Create a fresh agent and world from SCENARIO.
+
+Initial observations are applied through OBSERVE. Goals and hypotheses are then
+recorded on the agent. Returns AGENT, WORLD, and SCENARIO as multiple values."
+  (let ((world (make-world :facts (scenario-facts scenario)))
+        (agent (make-agent)))
+    (dolist (target (scenario-observations scenario))
+      (observe agent world target))
+    (when infer
+      (infer agent))
+    (dolist (desire (scenario-goals scenario))
+      (add-goal agent desire))
+    (dolist (hypothesis (scenario-hypotheses scenario))
+      (destructuring-bind (question proposition confidence &key (source :manual))
+          hypothesis
+        (add-hypothesis agent question proposition confidence :source source)))
+    (values agent world scenario)))
 
 (defun fact-predicate (fact)
   (first fact))
