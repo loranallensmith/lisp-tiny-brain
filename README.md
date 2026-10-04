@@ -6,7 +6,7 @@ LLMs, embeddings, transformers, neural networks, or a large hidden framework.
 The current goal is modest: create a tiny artificial world with hidden ground
 truth, give an agent partial observations, infer a few simple consequences,
 perform one small action, suggest actions that could reduce uncertainty, and
-inspect what the agent believes.
+inspect how the agent updates its beliefs.
 
 ## Recommended Lisp
 
@@ -170,6 +170,39 @@ then it can suggest an inspectable record shaped like:
                    (closed box-1)))
 ```
 
+## Belief Revision
+
+Version 0.5 adds a tiny belief-maintenance mechanism for mutually exclusive
+state predicates.
+
+For now, the only exclusive group is:
+
+```lisp
+(open closed)
+```
+
+That means adding:
+
+```lisp
+(open box-1)
+```
+
+automatically retracts:
+
+```lisp
+(closed box-1)
+```
+
+The retraction is recorded on the agent:
+
+```lisp
+(agent-retractions *agent*)
+```
+
+Each retraction records the old fact, the reason, the replacing fact, and when
+the retraction happened. This is deliberately small: it handles simple unary
+state replacement, not full contradiction detection or truth maintenance.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -225,6 +258,7 @@ This first milestone does not include:
 - planning or multi-step action selection
 - learned procedures
 - probabilistic updates
+- a general truth-maintenance system
 - a database
 - external services
 - neural networks, embeddings, or LLM calls

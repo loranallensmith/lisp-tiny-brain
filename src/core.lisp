@@ -8,6 +8,7 @@
             (:constructor %make-agent))
   (beliefs nil)
   (unknowns nil)
+  (retractions nil)
   (clock 0))
 
 (defstruct belief
@@ -17,6 +18,12 @@
   observed-at
   rule
   premises)
+
+(defstruct retraction
+  fact
+  reason
+  replaced-by
+  retracted-at)
 
 (defstruct rule
   name
@@ -83,6 +90,52 @@ API. Observations expose selected facts to the agent."
 (defun fact= (left right)
   (term= left right))
 
+(defparameter *exclusive-state-groups*
+  '((open closed)))
+
+(defun predicate-in-exclusive-group (predicate)
+  (find-if (lambda (group)
+             (member predicate group :test #'symbol-name=))
+           *exclusive-state-groups*))
+
+(defun exclusive-state-conflict-p (new-fact existing-fact)
+  (let ((group (predicate-in-exclusive-group (fact-predicate new-fact))))
+    (and group
+         (= (length new-fact) 2)
+         (= (length existing-fact) 2)
+         (term= (fact-subject new-fact) (fact-subject existing-fact))
+         (not (symbol-name= (fact-predicate new-fact)
+                            (fact-predicate existing-fact)))
+         (member (fact-predicate existing-fact) group :test #'symbol-name=))))
+
+(defun conflicting-beliefs (agent fact)
+  (remove-if-not (lambda (belief)
+                   (exclusive-state-conflict-p fact (belief-fact belief)))
+                 (agent-beliefs agent)))
+
+(defun record-retraction (agent fact reason replaced-by)
+  (incf (agent-clock agent))
+  (push (make-retraction :fact fact
+                         :reason reason
+                         :replaced-by replaced-by
+                         :retracted-at (agent-clock agent))
+        (agent-retractions agent))
+  fact)
+
+(defun retract-belief (agent fact &key (reason :retracted) replaced-by)
+  (when (find fact (agent-beliefs agent) :key #'belief-fact :test #'fact=)
+    (setf (agent-beliefs agent)
+          (remove fact (agent-beliefs agent) :key #'belief-fact :test #'fact=))
+    (record-retraction agent fact reason replaced-by))
+  fact)
+
+(defun retract-conflicts-for (agent fact)
+  (dolist (belief (conflicting-beliefs agent fact))
+    (retract-belief agent
+                    (belief-fact belief)
+                    :reason :replaced-by-exclusive-state
+                    :replaced-by fact)))
+
 (defun add-belief (agent fact &key
                                 (confidence 1.0)
                                 (source :direct-observation)
@@ -90,6 +143,7 @@ API. Observations expose selected facts to the agent."
                                 premises)
   "Record FACT as a belief unless the agent already believes it."
   (unless (find fact (agent-beliefs agent) :key #'belief-fact :test #'fact=)
+    (retract-conflicts-for agent fact)
     (incf (agent-clock agent))
     (push (make-belief :fact fact
                        :confidence confidence
@@ -101,9 +155,7 @@ API. Observations expose selected facts to the agent."
   fact)
 
 (defun remove-belief (agent fact)
-  (setf (agent-beliefs agent)
-        (remove fact (agent-beliefs agent) :key #'belief-fact :test #'fact=))
-  fact)
+  (retract-belief agent fact))
 
 (defun add-unknown (agent unknown)
   "Record an explicit unknown unless it is already present."
@@ -199,7 +251,6 @@ facts this action makes observable."
     (error "~S is not closed." container))
   (remove-world-fact world `(closed ,container))
   (add-world-fact world `(open ,container))
-  (remove-belief agent `(closed ,container))
   (add-belief agent `(open ,container) :source :action-observation)
   (remove-unknown agent `(contents ,container))
   (dolist (thing (things-located-in world container))

@@ -3,6 +3,7 @@
   (:export
    #:make-world
    #:make-agent
+   #:add-belief
    #:observe
    #:infer
    #:open-container
@@ -11,6 +12,7 @@
    #:why
    #:agent-beliefs
    #:agent-unknowns
+   #:agent-retractions
    #:belief
    #:belief-fact
    #:belief-confidence
@@ -26,4 +28,9 @@
    #:action-suggestion-action
    #:action-suggestion-target
    #:action-suggestion-reason
-   #:action-suggestion-preconditions))
+   #:action-suggestion-preconditions
+   #:retraction
+   #:retraction-fact
+   #:retraction-reason
+   #:retraction-replaced-by
+   #:retraction-retracted-at))
