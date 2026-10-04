@@ -13,6 +13,7 @@
    #:infer
    #:open-container
    #:suggest-actions
+   #:suggest-tests
    #:select-action
    #:perform-suggestion
    #:show-beliefs
@@ -45,6 +46,7 @@
    #:action-suggestion-reason
    #:action-suggestion-preconditions
    #:action-suggestion-serves-goal
+   #:action-suggestion-tests-question
    #:selected-action
    #:selected-action-suggestion
    #:selected-action-reason

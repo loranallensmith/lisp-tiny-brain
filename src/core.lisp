@@ -38,7 +38,8 @@
   target
   reason
   preconditions
-  serves-goal)
+  serves-goal
+  tests-question)
 
 (defstruct selected-action
   suggestion
@@ -386,6 +387,16 @@ API. Observations expose selected facts to the agent."
     (refresh-hypothesis-status agent hypothesis))
   (agent-hypotheses agent))
 
+(defun active-hypotheses-for (agent question)
+  (remove-if-not
+   (lambda (hypothesis)
+     (and (eql (hypothesis-status hypothesis) :active)
+          (term= (hypothesis-question hypothesis) question)))
+   (agent-hypotheses agent)))
+
+(defun competing-hypotheses-p (agent question)
+  (> (length (active-hypotheses-for agent question)) 1))
+
 (defun observable-properties-for (world thing)
   "Return simple properties visible from looking at THING.
 
@@ -489,7 +500,9 @@ facts this action makes observable."
           :serves-goal (find `(known ,unknown)
                              (agent-goals agent)
                              :key #'goal-desire
-                             :test #'term=)))))
+                             :test #'term=)
+          :tests-question (when (competing-hypotheses-p agent unknown)
+                            unknown)))))
     (t
      nil)))
 
@@ -503,10 +516,18 @@ inspect the hidden world state and they do not execute anything."
                     (suggest-action-for-unknown agent unknown))
                   (agent-unknowns agent))))
 
+(defun suggest-tests (agent)
+  "Suggest currently available actions that could distinguish hypotheses."
+  (remove-if-not #'action-suggestion-tests-question
+                 (suggest-actions agent)))
+
 (defun action-suggestion-serves-active-goal-p (suggestion)
   (let ((goal (action-suggestion-serves-goal suggestion)))
     (and goal
          (eql (goal-status goal) :active))))
+
+(defun action-suggestion-tests-hypotheses-p (suggestion)
+  (not (null (action-suggestion-tests-question suggestion))))
 
 (defun select-action (agent)
   "Select one currently available action suggestion.
@@ -515,15 +536,32 @@ This is one-step action selection, not planning. Suggestions serving active
 goals are preferred over curiosity-only suggestions."
   (let ((suggestions (suggest-actions agent)))
     (when suggestions
-      (let ((goal-suggestion (find-if #'action-suggestion-serves-active-goal-p
+      (let ((goal-and-test
+              (find-if (lambda (suggestion)
+                         (and (action-suggestion-serves-active-goal-p suggestion)
+                              (action-suggestion-tests-hypotheses-p suggestion)))
+                       suggestions))
+            (goal-suggestion (find-if #'action-suggestion-serves-active-goal-p
+                                      suggestions))
+            (test-suggestion (find-if #'action-suggestion-tests-hypotheses-p
                                       suggestions)))
-        (if goal-suggestion
-            (make-selected-action
-             :suggestion goal-suggestion
-             :reason :serves-active-goal)
-            (make-selected-action
-             :suggestion (first suggestions)
-             :reason :reduces-unknown))))))
+        (cond
+          (goal-and-test
+           (make-selected-action
+            :suggestion goal-and-test
+            :reason :serves-active-goal-and-tests-hypotheses))
+          (goal-suggestion
+           (make-selected-action
+            :suggestion goal-suggestion
+            :reason :serves-active-goal))
+          (test-suggestion
+           (make-selected-action
+            :suggestion test-suggestion
+            :reason :tests-hypotheses))
+          (t
+           (make-selected-action
+            :suggestion (first suggestions)
+            :reason :reduces-unknown)))))))
 
 (defun perform-suggestion (agent world suggestion)
   "Perform SUGGESTION in WORLD.

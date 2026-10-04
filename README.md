@@ -312,6 +312,23 @@ For now, confidence values are assigned manually. There is no Bayesian update
 yet. When later observations settle a contents question, compatible hypotheses
 are marked `:confirmed` and incompatible ones are marked `:rejected`.
 
+## Hypothesis Testing
+
+Version 0.11 lets the agent notice when an available action could distinguish
+active competing hypotheses:
+
+```lisp
+(suggest-tests *agent*)
+```
+
+For example, if there are multiple active hypotheses for `(contents box-1)`,
+then opening `box-1` can be marked as testing that question. Action selection
+now prefers suggestions that both serve an active goal and test hypotheses, then
+goal-serving suggestions, then hypothesis tests, then curiosity-only unknown
+reduction.
+
+This is symbolic information seeking, not entropy or expected-value math yet.
+
 ## What Version 0.1 Can Do
 
 Start a REPL from this directory:
@@ -335,6 +352,7 @@ Then:
 (add-hypothesis *agent* '(contents box-1) '(contents box-1 key-1) 0.70)
 (add-hypothesis *agent* '(contents box-1) '(contents box-1 empty) 0.20)
 (add-hypothesis *agent* '(contents box-1) '(contents box-1 unknown) 0.10)
+(suggest-tests *agent*)
 (defparameter *selection* (select-action *agent*))
 (perform-suggestion *agent* *world*
                     (selected-action-suggestion *selection*))
@@ -376,7 +394,7 @@ This first milestone does not include:
 - a general-purpose rule engine
 - planning or multi-step action search
 - learned procedures
-- probabilistic updates or normalized hypothesis sets
+- probabilistic updates, entropy, or normalized hypothesis sets
 - a general truth-maintenance system
 - reasoning over episodic memory
 - a database
