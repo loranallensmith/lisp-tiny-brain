@@ -22,6 +22,9 @@
 (defun terminal-step-p (trace)
   (member (step-trace-status trace) '(:satisfied :blocked :idle)))
 
+(defun validation-errors-p (issues)
+  (find :error issues :key #'validation-issue-severity))
+
 (defun show-heading (text)
   (format t "~&~%~A~%" text)
   (format t "~A~%" (make-string (length text) :initial-element #\-)))
@@ -29,6 +32,11 @@
 (defun run-scenario-file (pathname &key (steps *default-step-limit*))
   (let ((scenario (load-scenario pathname))
         (*package* (find-package '#:tiny-brain)))
+    (let ((issues (validate-scenario scenario)))
+      (when issues
+        (show-validation issues *error-output*))
+      (when (validation-errors-p issues)
+        (uiop:quit 1)))
     (multiple-value-bind (agent world)
         (start-scenario scenario)
       (format t "~&SCENARIO: ~S~%" (scenario-name scenario))

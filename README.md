@@ -375,6 +375,20 @@ sbcl --script scripts/run-scenario.lisp examples/lab-crate.lisp 5
 This is still a thin script over the public API. It exists so someone can try
 the project without learning the REPL sequence first.
 
+## Scenario Validation
+
+Version 0.17 adds scenario validation:
+
+```lisp
+(defparameter *issues* (validate-scenario *scenario*))
+(show-validation *issues*)
+```
+
+Validation catches common authoring mistakes before the runner starts, such as
+observing a missing room, marking a non-container as closed, putting a contents
+goal on an undeclared container, or writing a malformed hypothesis. The runner
+prints validation issues and stops on errors.
+
 ## Episodic Memory
 
 Version 0.9 adds a small episodic memory:

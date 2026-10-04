@@ -6,6 +6,8 @@
    #:make-scenario
    #:define-scenario
    #:load-scenario
+   #:validate-scenario
+   #:scenario-valid-p
    #:start-scenario
    #:add-belief
    #:add-goal
@@ -29,6 +31,7 @@
    #:show-memory
    #:show-plan
    #:show-trace
+   #:show-validation
    #:why
    #:explain
    #:show-explanation
@@ -45,6 +48,11 @@
    #:scenario-observations
    #:scenario-goals
    #:scenario-hypotheses
+   #:validation-issue
+   #:validation-issue-severity
+   #:validation-issue-code
+   #:validation-issue-message
+   #:validation-issue-detail
    #:belief
    #:belief-fact
    #:belief-confidence

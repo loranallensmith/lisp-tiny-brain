@@ -21,6 +21,12 @@
   goals
   hypotheses)
 
+(defstruct validation-issue
+  severity
+  code
+  message
+  detail)
+
 (defstruct belief
   fact
   confidence
@@ -271,6 +277,151 @@ recorded on the agent. Returns AGENT, WORLD, and SCENARIO as multiple values."
 
 (defun fact-present-p (world fact)
   (find fact (world-facts world) :test #'fact=))
+
+(defun facts-contain-p (facts fact)
+  (find fact facts :test #'fact=))
+
+(defun facts-for-predicate (facts predicate)
+  (remove-if-not (lambda (fact)
+                   (symbol-name= (fact-predicate fact) predicate))
+                 facts))
+
+(defun known-contents-desire-p (desire)
+  (and (consp desire)
+       (symbol-name= (first desire) 'known)
+       (= (length desire) 2)
+       (consp (second desire))
+       (symbol-name= (fact-predicate (second desire)) 'contents)
+       (fact-subject (second desire))
+       (= (length (second desire)) 2)))
+
+(defun validate-fact-shapes (facts)
+  (let ((issues nil))
+    (dolist (fact facts)
+      (unless (and (consp fact)
+                   (symbolp (fact-predicate fact)))
+        (push (make-validation-issue
+               :severity :error
+               :code :invalid-fact
+               :message "Facts must be non-empty lists whose first item is a symbol."
+               :detail fact)
+              issues)))
+    issues))
+
+(defun validate-observations (scenario facts)
+  (let ((issues nil))
+    (dolist (target (scenario-observations scenario))
+      (unless (facts-contain-p facts `(room ,target))
+        (push (make-validation-issue
+               :severity :error
+               :code :unknown-observation-target
+               :message "Observation targets must name rooms present in scenario facts."
+               :detail target)
+              issues)))
+    issues))
+
+(defun validate-containers (facts)
+  (let ((issues nil))
+    (dolist (fact (facts-for-predicate facts 'closed))
+      (let ((thing (fact-subject fact)))
+        (unless (facts-contain-p facts `(container ,thing))
+          (push (make-validation-issue
+                 :severity :error
+                 :code :closed-non-container
+                 :message "Closed things must also be declared as containers."
+                 :detail thing)
+                issues))))
+    (dolist (fact (facts-for-predicate facts 'container))
+      (let ((container (fact-subject fact)))
+        (unless (find-if (lambda (candidate)
+                           (and (symbol-name= (fact-predicate candidate)
+                                             'location)
+                                (term= (fact-subject candidate) container)))
+                         facts)
+          (push (make-validation-issue
+                 :severity :error
+                 :code :container-without-location
+                 :message "Containers need a location so they can become observable."
+                 :detail container)
+                issues))))
+    issues))
+
+(defun validate-goals (scenario facts)
+  (let ((issues nil))
+    (dolist (desire (scenario-goals scenario))
+      (when (known-contents-desire-p desire)
+        (let ((container (fact-subject (second desire))))
+          (unless (facts-contain-p facts `(container ,container))
+            (push (make-validation-issue
+                   :severity :error
+                   :code :goal-unknown-container
+                   :message "Contents goals must refer to a declared container."
+                   :detail desire)
+                  issues)))))
+    issues))
+
+(defun validate-hypothesis-shape (hypothesis)
+  (and (listp hypothesis)
+       (>= (length hypothesis) 3)
+       (let ((question (first hypothesis))
+             (proposition (second hypothesis))
+             (confidence (third hypothesis)))
+         (and (consp question)
+              (symbol-name= (fact-predicate question) 'contents)
+              (= (length question) 2)
+              (consp proposition)
+              (symbol-name= (fact-predicate proposition) 'contents)
+              (= (length proposition) 3)
+              (numberp confidence)
+              (<= 0 confidence 1)))))
+
+(defun validate-hypotheses (scenario facts)
+  (let ((issues nil))
+    (dolist (hypothesis (scenario-hypotheses scenario))
+      (cond
+        ((not (validate-hypothesis-shape hypothesis))
+         (push (make-validation-issue
+                :severity :error
+                :code :invalid-hypothesis
+                :message "Hypotheses must be (QUESTION PROPOSITION CONFIDENCE) with 0..1 confidence."
+                :detail hypothesis)
+               issues))
+        (t
+         (let* ((question (first hypothesis))
+                (proposition (second hypothesis))
+                (container (fact-subject question)))
+           (unless (facts-contain-p facts `(container ,container))
+             (push (make-validation-issue
+                    :severity :error
+                    :code :hypothesis-unknown-container
+                    :message "Contents hypotheses must refer to a declared container."
+                    :detail hypothesis)
+                   issues))
+           (unless (term= question (list (fact-predicate proposition)
+                                         (fact-subject proposition)))
+             (push (make-validation-issue
+                    :severity :error
+                    :code :hypothesis-question-mismatch
+                    :message "Hypothesis proposition must answer its question."
+                    :detail hypothesis)
+                   issues))))))
+    issues))
+
+(defun validate-scenario (scenario)
+  "Return validation issues for SCENARIO.
+
+An empty issue list means the scenario is valid enough for the current runner."
+  (let ((facts (scenario-facts scenario)))
+    (append (validate-fact-shapes facts)
+            (validate-observations scenario facts)
+            (validate-containers facts)
+            (validate-goals scenario facts)
+            (validate-hypotheses scenario facts))))
+
+(defun scenario-valid-p (scenario)
+  "Return true when SCENARIO has no validation errors."
+  (not (find :error (validate-scenario scenario)
+             :key #'validation-issue-severity)))
 
 (defun remove-world-fact (world fact)
   (setf (world-facts world)
@@ -1018,6 +1169,19 @@ agent has no explanation for."
                                     #'identity))
         (format stream "    ~S~%" unknown))
       (format stream "    NONE~%"))
+  (values))
+
+(defun show-validation (issues &optional (stream *standard-output*))
+  "Print scenario validation ISSUES."
+  (format stream "~&VALIDATION:~%")
+  (if issues
+      (dolist (issue issues)
+        (format stream "  ~S ~S: ~A~%"
+                (validation-issue-severity issue)
+                (validation-issue-code issue)
+                (validation-issue-message issue))
+        (format stream "    ~S~%" (validation-issue-detail issue)))
+      (format stream "  OK~%"))
   (values))
 
 (defun show-memory (agent &optional (stream *standard-output*))
