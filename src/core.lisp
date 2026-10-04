@@ -1217,6 +1217,116 @@ agent has no explanation for."
       (format stream "    NONE~%"))
   (values))
 
+(defun show-list-or-none (stream items &key (key #'identity) (indent "    "))
+  (if items
+      (dolist (item items)
+        (format stream "~A~S~%" indent (funcall key item)))
+      (format stream "~ANONE~%" indent))
+  (values))
+
+(defun latest-episode (agent type)
+  (find type (agent-episodes agent) :key #'episode-type))
+
+(defun resolved-hypotheses (agent)
+  (remove-if (lambda (hypothesis)
+               (eql (hypothesis-status hypothesis) :active))
+             (agent-hypotheses agent)))
+
+(defun trace-or-current-plan (agent trace)
+  (or (and trace (step-trace-plan trace))
+      (let ((goal (first (sorted-copy (active-goals agent) #'goal-desire))))
+        (when goal
+          (plan-for-goal agent (goal-desire goal))))))
+
+(defun show-cognition (agent &optional trace (stream *standard-output*))
+  "Print AGENT's current cognitive cycle, optionally centered on TRACE."
+  (let ((plan (trace-or-current-plan agent trace)))
+    (format stream "~&COGNITIVE CYCLE:~%")
+
+    (format stream "~&PERCEPTION:~%")
+    (let ((episode (latest-episode agent :observation)))
+      (if episode
+          (format stream "  LATEST: ~S -> ~S~%"
+                  (episode-detail episode)
+                  (episode-results episode))
+          (format stream "  LATEST: NONE~%")))
+
+    (format stream "~&WORKING MEMORY:~%")
+    (format stream "  GOALS:~%")
+    (show-list-or-none
+     stream
+     (sorted-copy (active-goals agent) #'goal-desire)
+     :key #'goal-desire)
+    (format stream "  UNKNOWNS:~%")
+    (show-list-or-none stream (sorted-copy (agent-unknowns agent) #'identity))
+    (format stream "  ACTIVE HYPOTHESES:~%")
+    (show-list-or-none
+     stream
+     (remove-if-not (lambda (hypothesis)
+                      (eql (hypothesis-status hypothesis) :active))
+                    (reverse (agent-hypotheses agent)))
+     :key #'hypothesis-proposition)
+
+    (format stream "~&SEMANTIC MEMORY:~%")
+    (format stream "  BELIEFS: ~D~%" (length (agent-beliefs agent)))
+    (when trace
+      (format stream "  NEW BELIEFS THIS STEP:~%")
+      (show-list-or-none stream
+                         (sorted-copy (step-trace-new-beliefs trace)
+                                      #'identity)))
+
+    (format stream "~&CURIOSITY:~%")
+    (format stream "  OPEN UNKNOWNS:~%")
+    (show-list-or-none stream (sorted-copy (agent-unknowns agent) #'identity))
+    (when trace
+      (format stream "  RESOLVED THIS STEP:~%")
+      (show-list-or-none stream
+                         (sorted-copy (step-trace-resolved-unknowns trace)
+                                      #'identity)))
+
+    (format stream "~&PLAN:~%")
+    (if plan
+        (progn
+          (format stream "  GOAL: ~S~%" (plan-goal plan))
+          (format stream "  STATUS: ~S~%" (plan-status plan))
+          (format stream "  STEPS:~%")
+          (show-list-or-none stream (mapcar #'plan-step-form (plan-steps plan))))
+        (format stream "  NONE~%"))
+
+    (format stream "~&ACTION:~%")
+    (if (and trace (step-trace-action trace))
+        (format stream "  DID: ~S~%" (step-trace-action trace))
+        (format stream "  DID: NONE~%"))
+
+    (format stream "~&LEARNING:~%")
+    (if trace
+        (progn
+          (format stream "  BELIEFS LEARNED:~%")
+          (show-list-or-none stream
+                             (sorted-copy (step-trace-new-beliefs trace)
+                                          #'identity))
+          (format stream "  UNKNOWNS RESOLVED:~%")
+          (show-list-or-none stream
+                             (sorted-copy (step-trace-resolved-unknowns trace)
+                                          #'identity)))
+        (format stream "  NO STEP TRACE PROVIDED~%"))
+    (format stream "  RESOLVED HYPOTHESES:~%")
+    (show-list-or-none
+     stream
+     (reverse (resolved-hypotheses agent))
+     :key (lambda (hypothesis)
+            (list (hypothesis-status hypothesis)
+                  (hypothesis-proposition hypothesis))))
+
+    (format stream "~&EPISODIC MEMORY:~%")
+    (let ((episode (first (agent-episodes agent))))
+      (if episode
+          (format stream "  LATEST: ~S ~S~%"
+                  (episode-type episode)
+                  (episode-detail episode))
+          (format stream "  LATEST: NONE~%"))))
+  (values))
+
 (defun show-validation (issues &optional (stream *standard-output*))
   "Print scenario validation ISSUES."
   (format stream "~&VALIDATION:~%")

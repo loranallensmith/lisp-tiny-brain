@@ -31,6 +31,7 @@
    #:show-memory
    #:show-plan
    #:show-trace
+   #:show-cognition
    #:show-validation
    #:why
    #:explain

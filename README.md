@@ -357,6 +357,29 @@ ready action when available, refreshes inference again, and returns a
 This is the beginning of a usable scenario runner. It is still deliberately
 bounded: one call, one inspectable step, no hidden autonomous loop.
 
+## Cognitive Cycle View
+
+Version 0.20 adds a brain-centered report:
+
+```lisp
+(show-cognition *agent* *trace*)
+```
+
+The report groups the current agent state around the cognitive loop:
+
+- perception: latest observation
+- working memory: active goals, unknowns, and hypotheses
+- semantic memory: current beliefs and newly learned beliefs
+- curiosity: open and resolved unknowns
+- plan: current goal and next steps
+- action: what the agent did
+- learning: belief updates, resolved unknowns, and resolved hypotheses
+- episodic memory: latest recorded event
+
+This does not add a new reasoning mechanism. It makes the existing artificial
+brain easier to read as a cycle of observation, curiosity, action, learning,
+and memory.
+
 ## Observation Actions
 
 Version 0.19 lets the agent use known-but-unobserved rooms as action targets.
